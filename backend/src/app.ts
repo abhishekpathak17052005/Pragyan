@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import { config } from '@/config/env';
 import { errorHandler } from '@/middleware/errorHandler';
+import { configurePassport } from '@/config/passport';
 
 // Routes
 import authRoutes from '@/routes/auth';
@@ -24,6 +25,7 @@ import jobsRoutes from '@/routes/jobs';
 import { redisRateLimiter } from '@/middleware/redisRateLimiter';
 
 const app: Application = express();
+configurePassport();
 
 // ============ SECURITY MIDDLEWARE ============
 

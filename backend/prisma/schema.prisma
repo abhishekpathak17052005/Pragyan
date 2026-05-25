@@ -14,6 +14,10 @@ model User {
   email               String              @unique
   fullName            String
   password            String
+  provider            String              @default("local")
+  providerId          String?
+  avatar              String?
+  emailVerified       Boolean             @default(false)
   role                String              @default("USER")
   age                 Int?
   location            String?
@@ -54,6 +58,8 @@ model User {
   
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
+
+  @@index([provider, providerId])
 }
 
 model RefreshToken {

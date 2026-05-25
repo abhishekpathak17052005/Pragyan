@@ -1,6 +1,7 @@
 // src/config/env.ts
 
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -10,6 +11,7 @@ const requiredEnvVars = [
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
   'RAPID_API_KEY',
+  'SESSION_SECRET',
 ];
 
 requiredEnvVars.forEach((envVar) => {
@@ -17,6 +19,10 @@ requiredEnvVars.forEach((envVar) => {
     console.warn(`Warning: ${envVar} is not set in environment variables`);
   }
 });
+
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production');
+}
 
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
@@ -65,6 +71,16 @@ export const config = {
 
   redis: {
     url: process.env.REDIS_URL || null,
+  },
+
+  oauth: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    githubClientId: process.env.GITHUB_CLIENT_ID || '',
+    githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    sessionSecret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+    frontendSuccessUrl: process.env.OAUTH_SUCCESS_URL || 'http://localhost:5173/auth/success',
+    frontendFailureUrl: process.env.OAUTH_FAILURE_URL || 'http://localhost:5173/auth',
   },
 };
 

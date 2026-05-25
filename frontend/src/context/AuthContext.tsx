@@ -14,6 +14,7 @@ interface AuthContextValue {
   register: typeof authService.register;
   refreshToken: typeof authService.refreshToken;
   updateProfile: typeof authService.updateProfile;
+  applySession: (session: AuthSession) => void;
   logout: () => Promise<void>;
   reloadUser: () => Promise<void>;
 }
@@ -94,6 +95,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return next;
     },
     updateProfile: authService.updateProfile,
+    applySession: (nextSession) => {
+      const normalized = authService.applySession(nextSession);
+      setSession(normalized);
+      setStatus("authenticated");
+    },
     logout: async () => {
       const refreshToken = session?.refreshToken;
       if (refreshToken) {
