@@ -10,6 +10,7 @@ const requiredEnvVars = [
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
   'RAPID_API_KEY',
+  'SESSION_SECRET',
 ];
 
 requiredEnvVars.forEach((envVar) => {
@@ -65,6 +66,16 @@ export const config = {
 
   redis: {
     url: process.env.REDIS_URL || null,
+  },
+
+  oauth: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    githubClientId: process.env.GITHUB_CLIENT_ID || '',
+    githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    sessionSecret: process.env.SESSION_SECRET || 'change_me_session_secret',
+    frontendSuccessUrl: process.env.OAUTH_SUCCESS_URL || 'http://localhost:5173/auth/success',
+    frontendFailureUrl: process.env.OAUTH_FAILURE_URL || 'http://localhost:5173/auth',
   },
 };
 

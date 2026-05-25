@@ -18,6 +18,10 @@ const authAttemptLimiter = rateLimit({
 
 router.post('/register', authAttemptLimiter, validate(registerSchema), authController.register);
 router.post('/login', authAttemptLimiter, validate(loginSchema), authController.login);
+router.get('/google', authController.googleAuth);
+router.get('/google/callback', authController.googleCallback);
+router.get('/github', authController.githubAuth);
+router.get('/github/callback', authController.githubCallback);
 router.get('/me', authenticate, authController.me);
 router.patch('/me', authenticate, validate(profileUpdateSchema), authController.updateProfile);
 router.post('/logout', authAttemptLimiter, validate(refreshTokenSchema), authController.logout);

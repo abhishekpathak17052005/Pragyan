@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { Suspense, lazy } from "react";
 import { LandingPage } from "./pages/LandingPage";
 import { Auth } from "./pages/Auth";
+import { AuthSuccess } from "./pages/AuthSuccess";
 import { Navigation } from "./components/Navigation";
 import { AuthProvider } from "@/context/AuthContext";
 import { RequireAuth } from "./components/RequireAuth";
@@ -30,6 +31,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/success" element={<AuthSuccess />} />
               <Route
                 path="/dashboard"
                 element={

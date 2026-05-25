@@ -30,18 +30,20 @@ function normalizeSession(data: AuthSession | { user: AuthUser; accessToken?: st
 }
 
 export const authService = {
-  async login(input: LoginInput) {
-    const session = await apiClient.post<AuthSession>("/auth/login", input, { skipAuth: true });
+  applySession(session: AuthSession) {
     const normalized = normalizeSession(session);
     setStoredAuthSession(normalized);
     return normalized;
   },
 
+  async login(input: LoginInput) {
+    const session = await apiClient.post<AuthSession>("/auth/login", input, { skipAuth: true });
+    return this.applySession(session);
+  },
+
   async register(input: RegisterInput) {
     const session = await apiClient.post<AuthSession>("/auth/register", input, { skipAuth: true });
-    const normalized = normalizeSession(session);
-    setStoredAuthSession(normalized);
-    return normalized;
+    return this.applySession(session);
   },
 
   async me() {
@@ -54,9 +56,7 @@ export const authService = {
 
   async refreshToken(input: RefreshTokenInput) {
     const session = await apiClient.post<AuthSession>("/auth/refresh-token", input, { skipAuth: true });
-    const normalized = normalizeSession(session);
-    setStoredAuthSession(normalized);
-    return normalized;
+    return this.applySession(session);
   },
 
   async logout(refreshToken: string) {

@@ -2,11 +2,13 @@
 
 import { prisma } from '@/lib/prisma';
 import { MongoClient, ObjectId } from 'mongodb';
+import crypto from 'crypto';
 import { getMongoUrl } from '@/config/mongo';
 import { hashPassword, comparePasswords } from '@/utils/password';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '@/utils/jwt';
 import { ConflictError, UnauthorizedError, NotFoundError, BadRequestError } from '@/utils/errors';
 import { RegisterInput, LoginInput, ProfileUpdateInput } from '@/validators/auth';
+import type { OAuthProfileUser } from '@/config/passport';
 
 const userProfileSelect = {
   id: true,
@@ -31,6 +33,54 @@ const userProfileSelect = {
 } as const;
 
 export class AuthService {
+  private async createRefreshTokenRecord(userId: string): Promise<string> {
+    let refreshToken = generateRefreshToken(userId);
+
+    try {
+      await prisma.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+      return refreshToken;
+    } catch (err: any) {
+      if (err?.code !== 'P2002') {
+        throw err;
+      }
+    }
+
+    refreshToken = generateRefreshToken(userId);
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+    return refreshToken;
+  }
+
+  private buildSessionForUser(user: { id: string; email: string; role: string; fullName: string }, refreshToken: string) {
+    const accessToken = generateAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role as 'USER' | 'ADMIN',
+    });
+
+    return {
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
   private async upsertCurrentUserSnapshot(user: {
     _id: ObjectId;
     email: string;
@@ -136,30 +186,7 @@ export class AuthService {
       });
 
       // Create refresh token with Prisma (retry once on unlikely token collision)
-      let refreshTokenStr = generateRefreshToken(created.id);
-      try {
-        await prisma.refreshToken.create({
-          data: {
-            token: refreshTokenStr,
-            userId: created.id,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          },
-        });
-      } catch (err: any) {
-        if (err?.code === 'P2002') {
-          // Token collision - generate a new token and retry once
-          refreshTokenStr = generateRefreshToken(created.id);
-          await prisma.refreshToken.create({
-            data: {
-              token: refreshTokenStr,
-              userId: created.id,
-              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            },
-          });
-        } else {
-          throw err;
-        }
-      }
+      const refreshTokenStr = await this.createRefreshTokenRecord(created.id);
 
       // Try non-blocking snapshot upsert; do not fail registration if this fails
       try {
@@ -193,12 +220,6 @@ export class AuthService {
         console.warn('Non-blocking snapshot upsert failed:', snapshotErr?.message || String(snapshotErr));
       }
 
-      const accessToken = generateAccessToken({
-        id: created.id,
-        email: created.email,
-        role: 'USER',
-      });
-
       return {
         user: {
           id: created.id,
@@ -220,7 +241,7 @@ export class AuthService {
           createdAt: created.createdAt,
           updatedAt: created.updatedAt,
         },
-        accessToken,
+        accessToken: this.buildSessionForUser(created, refreshTokenStr).accessToken,
         refreshToken: refreshTokenStr,
       };
     } catch (error: any) {
@@ -247,41 +268,10 @@ export class AuthService {
       throw new UnauthorizedError('Invalid email or password');
     }
 
-    const accessToken = generateAccessToken({
-      id: user.id,
-      email: user.email,
-      role: user.role as 'USER' | 'ADMIN',
-    });
-
-    let refreshToken = generateRefreshToken(user.id);
+    const refreshToken = await this.createRefreshTokenRecord(user.id);
 
     // Use MongoDB driver directly to avoid transaction requirement
     try {
-      // Create refresh token via Prisma to avoid MongoClient SRV DNS issues
-      try {
-        await prisma.refreshToken.create({
-          data: {
-            token: refreshToken,
-            userId: user.id,
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          },
-        });
-      } catch (err: any) {
-        if (err?.code === 'P2002') {
-          // Collision - try once with a fresh token
-          refreshToken = generateRefreshToken(user.id);
-          await prisma.refreshToken.create({
-            data: {
-              token: refreshToken,
-              userId: user.id,
-              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            },
-          });
-        } else {
-          throw err;
-        }
-      }
-
       // Attempt to update snapshot but do not fail login if snapshot upsert fails
       try {
         await this.upsertCurrentUserSnapshot(
@@ -319,15 +309,94 @@ export class AuthService {
     }
 
     return {
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
-      accessToken,
-      refreshToken,
+      ...this.buildSessionForUser(user, refreshToken),
     };
+  }
+
+  async oauthLogin(profile: OAuthProfileUser) {
+    if (!profile.email) {
+      throw new BadRequestError('Email address is required from OAuth provider');
+    }
+
+    const normalizedEmail = profile.email.toLowerCase();
+    const now = new Date();
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    const user = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            provider: profile.provider,
+            providerId: profile.providerId,
+            avatar: profile.avatar ?? existingUser.avatar,
+            emailVerified: profile.emailVerified || existingUser.emailVerified,
+            fullName: existingUser.fullName || profile.fullName,
+            updatedAt: now,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            fullName: profile.fullName,
+            password: await hashPassword(crypto.randomBytes(32).toString('hex')),
+            role: 'USER',
+            age: null,
+            location: null,
+            phone: null,
+            linkedin: null,
+            skills: [],
+            interests: [],
+            preferences: [],
+            experience: null,
+            experienceType: 'fresher',
+            education: null,
+            educationEntries: [],
+            skillLevel: null,
+            xp: 0,
+            streak: 0,
+            provider: profile.provider,
+            providerId: profile.providerId,
+            avatar: profile.avatar ?? null,
+            emailVerified: profile.emailVerified,
+          },
+        });
+
+    const refreshToken = await this.createRefreshTokenRecord(user.id);
+
+    try {
+      await this.upsertCurrentUserSnapshot(
+        {
+          _id: new ObjectId(user.id),
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+          age: user.age ?? null,
+          location: user.location ?? null,
+          phone: user.phone ?? null,
+          linkedin: user.linkedin ?? null,
+          skills: Array.isArray(user.skills) ? user.skills : [],
+          interests: Array.isArray(user.interests) ? user.interests : [],
+          preferences: Array.isArray(user.preferences) ? user.preferences : [],
+          experience: user.experience ?? null,
+          experienceType: user.experienceType ?? null,
+          education: user.education ?? null,
+          educationEntries: user.educationEntries ?? [],
+          skillLevel: user.skillLevel ?? null,
+          xp: user.xp ?? 0,
+          streak: user.streak ?? 0,
+          createdAt: user.createdAt ?? now,
+          updatedAt: now,
+        } as any,
+        true,
+        now
+      );
+    } catch (snapshotErr) {
+      console.warn('Non-blocking snapshot upsert failed during OAuth login:', (snapshotErr as any)?.message || snapshotErr);
+    }
+
+    return this.buildSessionForUser(user, refreshToken);
   }
 
   async getUserById(userId: string) {
