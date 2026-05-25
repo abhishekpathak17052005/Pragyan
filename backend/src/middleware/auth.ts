@@ -3,15 +3,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { UnauthorizedError, ForbiddenError } from '@/utils/errors';
 import { verifyAccessToken } from '@/utils/jwt';
-import { JwtPayload } from '@/types';
-
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
-}
 
 export const authenticate = (
   req: Request,

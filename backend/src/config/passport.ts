@@ -50,8 +50,14 @@ export function configurePassport(): void {
           clientSecret: config.oauth.googleClientSecret,
           callbackURL: '/api/auth/google/callback',
         },
-        (_accessToken, _refreshToken, profile, done) => {
-          done(null, mapGoogleProfile(profile));
+        (_accessToken: string, _refreshToken: string, profile: GoogleProfile, done: (error: unknown, user?: Express.User | false) => void) => {
+          const oauthUser = mapGoogleProfile(profile);
+          done(null, {
+            ...oauthUser,
+            id: oauthUser.providerId,
+            email: oauthUser.email || '',
+            role: 'USER',
+          } as Express.User);
         }
       )
     );
@@ -66,8 +72,14 @@ export function configurePassport(): void {
           callbackURL: '/api/auth/github/callback',
           scope: ['user:email'],
         },
-        (_accessToken, _refreshToken, profile, done) => {
-          done(null, mapGitHubProfile(profile));
+        (_accessToken: string, _refreshToken: string, profile: GitHubProfile, done: (error: unknown, user?: Express.User | false) => void) => {
+          const oauthUser = mapGitHubProfile(profile);
+          done(null, {
+            ...oauthUser,
+            id: oauthUser.providerId,
+            email: oauthUser.email || '',
+            role: 'USER',
+          } as Express.User);
         }
       )
     );
