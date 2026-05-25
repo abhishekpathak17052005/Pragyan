@@ -5,8 +5,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import session from 'express-session';
-import passport from 'passport';
 import { config } from '@/config/env';
 import { errorHandler } from '@/middleware/errorHandler';
 import { configurePassport } from '@/config/passport';
@@ -62,22 +60,6 @@ app.use(
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.set('trust proxy', 1);
-app.use(
-  session({
-    secret: config.oauth.sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: config.nodeEnv === 'production',
-      sameSite: 'lax',
-      maxAge: 10 * 60 * 1000,
-    },
-  })
-);
-app.use(passport.initialize());
-app.use(passport.session());
 
 // ============ LOGGING ============
 

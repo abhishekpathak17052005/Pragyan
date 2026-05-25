@@ -18,7 +18,10 @@ describe('OAuth auth controller callbacks', () => {
   });
 
   it('redirects to frontend success URL with tokens for Google OAuth login', async () => {
-    const req = {} as any;
+    const req = {
+      session: { oauthState: 'state-1' },
+      query: { state: 'state-1' },
+    } as any;
     const res = {
       redirect: jest.fn(),
     } as any;
@@ -57,7 +60,10 @@ describe('OAuth auth controller callbacks', () => {
   });
 
   it('redirects to missing_email error when GitHub callback has no email', async () => {
-    const req = {} as any;
+    const req = {
+      session: { oauthState: 'state-2' },
+      query: { state: 'state-2' },
+    } as any;
     const res = {
       redirect: jest.fn(),
     } as any;

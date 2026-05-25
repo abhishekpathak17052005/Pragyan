@@ -2,6 +2,7 @@
 
 import { NextFunction, Request, Response } from 'express';
 import passport from 'passport';
+import crypto from 'crypto';
 import { authService } from '@/services/auth';
 import { sendSuccess, sendError } from '@/utils/response';
 import { RegisterInput, LoginInput, ProfileUpdateInput } from '@/validators/auth';
@@ -86,10 +87,13 @@ export const googleAuth = (req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
+  const state = crypto.randomBytes(16).toString('hex');
+  req.session.oauthState = state;
+
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     session: false,
-    state: true as unknown as string,
+    state,
   })(req, res, next);
 };
 
@@ -99,14 +103,22 @@ export const githubAuth = (req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
+  const state = crypto.randomBytes(16).toString('hex');
+  req.session.oauthState = state;
+
   passport.authenticate('github', {
     scope: ['user:email'],
     session: false,
-    state: true as unknown as string,
+    state,
   })(req, res, next);
 };
 
 export const googleCallback = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.session.oauthState || req.query.state !== req.session.oauthState) {
+    return res.redirect(buildOAuthErrorRedirect('invalid_callback'));
+  }
+  delete req.session.oauthState;
+
   passport.authenticate('google', { session: false }, async (error: Error | null, user: OAuthProfileUser | false) => {
     if (error) {
       const providerMessage = error.message.toLowerCase();
@@ -134,6 +146,11 @@ export const googleCallback = (req: Request, res: Response, next: NextFunction) 
 };
 
 export const githubCallback = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.session.oauthState || req.query.state !== req.session.oauthState) {
+    return res.redirect(buildOAuthErrorRedirect('invalid_callback'));
+  }
+  delete req.session.oauthState;
+
   passport.authenticate('github', { session: false }, async (error: Error | null, user: OAuthProfileUser | false) => {
     if (error) {
       const providerMessage = error.message.toLowerCase();

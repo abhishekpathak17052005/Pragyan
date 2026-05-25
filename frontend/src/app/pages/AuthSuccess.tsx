@@ -3,6 +3,8 @@ import { motion } from "motion/react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 
+const OAUTH_BACKEND_BASE = (import.meta.env.VITE_AUTH_BACKEND_URL as string | undefined) || "http://localhost:5000";
+
 function readOAuthTokensFromUrl() {
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const queryParams = new URLSearchParams(window.location.search);
@@ -29,7 +31,7 @@ export function AuthSuccess() {
 
       try {
         setMessage("Validating session...");
-        const response = await fetch("http://localhost:5000/api/auth/me", {
+        const response = await fetch(`${OAUTH_BACKEND_BASE}/api/auth/me`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${oauthSession.accessToken}`,

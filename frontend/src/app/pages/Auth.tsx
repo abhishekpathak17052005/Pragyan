@@ -8,6 +8,7 @@ import { GlowButton } from "../components/GlowButton";
 import { useAuth } from "@/context/AuthContext";
 
 type AuthMode = "login" | "signup" | "forgot";
+const OAUTH_BACKEND_BASE = (import.meta.env.VITE_AUTH_BACKEND_URL as string | undefined) || "http://localhost:5000";
 
 export function Auth() {
   const navigate = useNavigate();
@@ -201,7 +202,7 @@ export function Auth() {
             <button
               type="button"
               onClick={() => {
-                window.location.href = "http://localhost:5000/api/auth/google";
+                window.location.href = `${OAUTH_BACKEND_BASE}/api/auth/google`;
               }}
               className="w-full py-3 px-4 bg-input-background border border-border rounded-lg hover:bg-muted/50 transition-all flex items-center justify-center gap-2"
             >
@@ -228,7 +229,7 @@ export function Auth() {
             <button
               type="button"
               onClick={() => {
-                window.location.href = "http://localhost:5000/api/auth/github";
+                window.location.href = `${OAUTH_BACKEND_BASE}/api/auth/github`;
               }}
               className="w-full py-3 px-4 bg-input-background border border-border rounded-lg hover:bg-muted/50 transition-all flex items-center justify-center gap-2"
             >
