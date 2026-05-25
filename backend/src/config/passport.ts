@@ -55,7 +55,7 @@ export function configurePassport(): void {
           done(null, {
             ...oauthUser,
             id: oauthUser.providerId,
-            email: oauthUser.email || '',
+            email: oauthUser.email,
             role: 'USER',
           } as Express.User);
         }
@@ -77,7 +77,7 @@ export function configurePassport(): void {
           done(null, {
             ...oauthUser,
             id: oauthUser.providerId,
-            email: oauthUser.email || '',
+            email: oauthUser.email,
             role: 'USER',
           } as Express.User);
         }

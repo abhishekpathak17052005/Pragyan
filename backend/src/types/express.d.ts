@@ -3,7 +3,13 @@ import type { JwtPayload } from '@/types';
 
 declare global {
   namespace Express {
-    interface User extends JwtPayload, Partial<OAuthProfileUser> {}
+    interface User extends Partial<OAuthProfileUser> {
+      id: string;
+      email?: string;
+      role: JwtPayload['role'];
+      iat?: number;
+      exp?: number;
+    }
   }
 }
 

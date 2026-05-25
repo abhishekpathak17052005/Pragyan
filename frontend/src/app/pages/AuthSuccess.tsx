@@ -6,13 +6,10 @@ import { useAuth } from "@/context/AuthContext";
 const OAUTH_BACKEND_BASE = (import.meta.env.VITE_AUTH_BACKEND_URL as string | undefined) || "http://localhost:5000";
 
 function readOAuthTokensFromUrl() {
-  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const queryParams = new URLSearchParams(window.location.search);
-
-  const accessToken = hashParams.get("accessToken") || queryParams.get("accessToken");
-  const refreshToken = hashParams.get("refreshToken") || queryParams.get("refreshToken");
-
-  return { accessToken, refreshToken };
+  return {
+    oauthToken: queryParams.get("oauthToken"),
+  };
 }
 
 export function AuthSuccess() {
@@ -24,31 +21,27 @@ export function AuthSuccess() {
 
   useEffect(() => {
     async function completeOAuthLogin() {
-      if (!oauthSession.accessToken || !oauthSession.refreshToken) {
+      if (!oauthSession.oauthToken) {
         navigate("/auth?error=invalid_callback", { replace: true });
         return;
       }
 
       try {
         setMessage("Validating session...");
-        const response = await fetch(`${OAUTH_BACKEND_BASE}/api/auth/me`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${oauthSession.accessToken}`,
-          },
-          credentials: "include",
-        });
+        const response = await fetch(
+          `${OAUTH_BACKEND_BASE}/api/auth/oauth/session?token=${encodeURIComponent(oauthSession.oauthToken)}`,
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        );
 
         const payload = await response.json();
-        if (!response.ok || !payload?.data) {
+        if (!response.ok || !payload?.data?.accessToken || !payload?.data?.refreshToken) {
           throw new Error(payload?.message || "Invalid OAuth callback");
         }
 
-        applySession({
-          user: payload.data,
-          accessToken: oauthSession.accessToken,
-          refreshToken: oauthSession.refreshToken,
-        });
+        applySession(payload.data);
 
         setMessage("Redirecting to your dashboard...");
         navigate("/dashboard", { replace: true });
@@ -58,7 +51,7 @@ export function AuthSuccess() {
     }
 
     completeOAuthLogin();
-  }, [applySession, navigate, oauthSession.accessToken, oauthSession.refreshToken]);
+  }, [applySession, navigate, oauthSession.oauthToken]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6">

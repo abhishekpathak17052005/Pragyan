@@ -10,6 +10,8 @@ import { asyncHandler } from '@/middleware/errorHandler';
 import { config } from '@/config/env';
 import type { OAuthProfileUser } from '@/config/passport';
 
+type OAuthLoginSession = Awaited<ReturnType<typeof authService.oauthLogin>>;
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const input: RegisterInput = req.body;
   const result = await authService.register(input);
@@ -73,12 +75,31 @@ function buildOAuthErrorRedirect(errorCode: string): string {
   return `${config.oauth.frontendFailureUrl}?${params.toString()}`;
 }
 
-function buildOAuthSuccessRedirect(accessToken: string, refreshToken: string): string {
+const pendingOAuthSessions = new Map<string, { session: OAuthLoginSession; expiresAt: number }>();
+const OAUTH_SESSION_TTL_MS = 60_000;
+
+function buildOAuthSuccessRedirect(oauthToken: string): string {
   const params = new URLSearchParams({
-    accessToken,
-    refreshToken,
+    oauthToken,
   });
-  return `${config.oauth.frontendSuccessUrl}#${params.toString()}`;
+  return `${config.oauth.frontendSuccessUrl}?${params.toString()}`;
+}
+
+function storePendingOAuthSession(session: OAuthLoginSession): string {
+  const now = Date.now();
+  for (const [token, pending] of pendingOAuthSessions.entries()) {
+    if (pending.expiresAt <= now) {
+      pendingOAuthSessions.delete(token);
+    }
+  }
+
+  const oauthToken = crypto.randomBytes(24).toString('hex');
+  pendingOAuthSessions.set(oauthToken, {
+    session,
+    expiresAt: now + OAUTH_SESSION_TTL_MS,
+  });
+
+  return oauthToken;
 }
 
 export const googleAuth = (req: Request, res: Response, next: NextFunction) => {
@@ -134,7 +155,8 @@ export const googleCallback = (req: Request, res: Response, next: NextFunction) 
 
     try {
       const session = await authService.oauthLogin(user);
-      return res.redirect(buildOAuthSuccessRedirect(session.accessToken, session.refreshToken));
+      const oauthToken = storePendingOAuthSession(session);
+      return res.redirect(buildOAuthSuccessRedirect(oauthToken));
     } catch (callbackError) {
       const message = callbackError instanceof Error ? callbackError.message : '';
       if (message.toLowerCase().includes('email')) {
@@ -166,7 +188,8 @@ export const githubCallback = (req: Request, res: Response, next: NextFunction) 
 
     try {
       const session = await authService.oauthLogin(user);
-      return res.redirect(buildOAuthSuccessRedirect(session.accessToken, session.refreshToken));
+      const oauthToken = storePendingOAuthSession(session);
+      return res.redirect(buildOAuthSuccessRedirect(oauthToken));
     } catch (callbackError) {
       const message = callbackError instanceof Error ? callbackError.message : '';
       if (message.toLowerCase().includes('email')) {
@@ -176,3 +199,20 @@ export const githubCallback = (req: Request, res: Response, next: NextFunction) 
     }
   })(req, res, next);
 };
+
+export const oauthSession = asyncHandler(async (req: Request, res: Response) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : null;
+
+  if (!token) {
+    return sendError(res, 400, 'OAuth session token is required');
+  }
+
+  const pending = pendingOAuthSessions.get(token);
+  if (!pending || pending.expiresAt <= Date.now()) {
+    pendingOAuthSessions.delete(token);
+    return sendError(res, 401, 'OAuth session token is invalid or expired');
+  }
+
+  pendingOAuthSessions.delete(token);
+  return sendSuccess(res, pending.session, 200, 'OAuth session ready');
+});

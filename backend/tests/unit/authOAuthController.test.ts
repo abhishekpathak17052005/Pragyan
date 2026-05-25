@@ -17,6 +17,10 @@ describe('OAuth auth controller callbacks', () => {
     jest.spyOn(authService, 'oauthLogin').mockReset();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('redirects to frontend success URL with tokens for Google OAuth login', async () => {
     const req = {
       session: { oauthState: 'state-1' },
@@ -54,9 +58,8 @@ describe('OAuth auth controller callbacks', () => {
 
     await googleCallback(req, res, next);
 
-    expect(res.redirect).toHaveBeenCalledWith(
-      'http://localhost:5173/auth/success#accessToken=access-token-value&refreshToken=refresh-token-value'
-    );
+    const redirectedTo = (res.redirect as jest.Mock).mock.calls[0]?.[0] as string;
+    expect(redirectedTo).toMatch(/^http:\/\/localhost:5173\/auth\/success\?oauthToken=[a-f0-9]+$/);
   });
 
   it('redirects to missing_email error when GitHub callback has no email', async () => {

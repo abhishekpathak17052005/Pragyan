@@ -38,6 +38,7 @@ router.get('/google', oauthSessionMiddleware, passport.initialize(), authControl
 router.get('/google/callback', oauthSessionMiddleware, passport.initialize(), authController.googleCallback);
 router.get('/github', oauthSessionMiddleware, passport.initialize(), authController.githubAuth);
 router.get('/github/callback', oauthSessionMiddleware, passport.initialize(), authController.githubCallback);
+router.get('/oauth/session', authAttemptLimiter, authController.oauthSession);
 router.get('/me', authenticate, authController.me);
 router.patch('/me', authenticate, validate(profileUpdateSchema), authController.updateProfile);
 router.post('/logout', authAttemptLimiter, validate(refreshTokenSchema), authController.logout);

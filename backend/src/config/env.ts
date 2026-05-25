@@ -1,6 +1,7 @@
 // src/config/env.ts
 
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -77,7 +78,7 @@ export const config = {
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     githubClientId: process.env.GITHUB_CLIENT_ID || '',
     githubClientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-    sessionSecret: process.env.SESSION_SECRET || 'change_me_session_secret',
+    sessionSecret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     frontendSuccessUrl: process.env.OAUTH_SUCCESS_URL || 'http://localhost:5173/auth/success',
     frontendFailureUrl: process.env.OAUTH_FAILURE_URL || 'http://localhost:5173/auth',
   },
