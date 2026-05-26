@@ -50,7 +50,7 @@
 
 ### Core Capabilities
 
-- ✅ **User Authentication** - Secure JWT-based authentication with refresh tokens
+- ✅ **User Authentication** - Secure JWT-based auth with refresh tokens + Google & GitHub OAuth
 - ✅ **Adaptive Assessment** - AI-powered dynamic questionnaires
 - ✅ **Career Intelligence** - 16+ diverse career paths with skill mappings
 - ✅ **Learning Roadmaps** - 5 comprehensive roadmaps with 100+ modules
@@ -58,13 +58,15 @@
 - ✅ **Progress Tracking** - XP system, achievements, streak counters
 - ✅ **Skill Analytics** - Detailed gap analysis and recommendations
 - ✅ **AI Chat Assistant** - Conversational guidance powered by Gemini
+- ✅ **Profile Management** - User profile with GitHub repository integration
+- ✅ **AI Memory Profiling** - Persistent personalization across sessions
 
 ### Technical Excellence
 
 - 🔒 **Production-Safe** - MongoDB Atlas + Prisma ORM with replica-set support
 - 🚀 **Highly Scalable** - Microservices architecture, Redis caching
 - ⚡ **Performance Optimized** - Lazy loading, route splitting, optimized queries
-- 🎨 **Modern UI** - React 18, Framer Motion, Tailwind CSS
+- 🎨 **Modern UI** - React 18, Motion, Tailwind CSS, shadcn/Radix UI components
 - 📱 **Fully Responsive** - Mobile-first design approach
 - 🔍 **SEO Ready** - Server-side rendering support
 
@@ -77,9 +79,11 @@
 - **TypeScript** - Type safety
 - **Vite** - Build tool (dev server on port 5173)
 - **Tailwind CSS** - Styling
-- **Framer Motion** - Animations
+- **Motion** - Animations
+- **Radix UI / shadcn** - Accessible component primitives
+- **MUI (Material UI)** - Additional UI components & icons
 - **Recharts** - Data visualization
-- **Axios** - HTTP client
+- **React Router v7** - Client-side routing
 
 ### Backend
 - **Node.js** - Runtime
@@ -88,6 +92,7 @@
 - **Prisma** - MongoDB ORM
 - **MongoDB Atlas** - Cloud database
 - **JWT** - Authentication
+- **Passport.js** - OAuth 2.0 (Google & GitHub)
 - **Gemini API** - AI/LLM integration
 - **Redis** - Caching (optional)
 
@@ -101,9 +106,22 @@ Pragyan/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── pages/          # Page components
+│   │   │   │   ├── LandingPage.tsx
+│   │   │   │   ├── Auth.tsx
+│   │   │   │   ├── AuthSuccess.tsx
+│   │   │   │   ├── Dashboard.tsx
+│   │   │   │   ├── Assessment.tsx
+│   │   │   │   ├── Results.tsx
+│   │   │   │   ├── DetailedAnalysis.tsx
+│   │   │   │   ├── Roadmap.tsx
+│   │   │   │   ├── Jobs.tsx
+│   │   │   │   ├── Assistant.tsx
+│   │   │   │   └── Profile.tsx
 │   │   │   ├── components/     # Reusable components
 │   │   │   └── App.tsx
-│   │   ├── services/           # API services
+│   │   ├── context/            # React context (Auth)
+│   │   ├── services/           # API service clients
+│   │   ├── types/              # TypeScript type definitions
 │   │   └── styles/             # Global styles
 │   ├── vite.config.ts
 │   └── package.json
@@ -116,11 +134,12 @@ Pragyan/
 │   │   ├── middleware/         # Express middleware
 │   │   ├── config/             # Configuration
 │   │   ├── ai/                 # AI integration
-│   │   └── app.ts
+│   │   └── server.ts
 │   ├── prisma/
 │   │   ├── schema.prisma       # Database schema
 │   │   └── seed.ts
 │   ├── scripts/
+│   │   ├── seedAll.ts
 │   │   ├── seedCareers.ts
 │   │   ├── seedRoadmaps.ts
 │   │   ├── seedJobs.ts
@@ -171,13 +190,22 @@ JWT_EXPIRY="7d"
 JWT_REFRESH_SECRET="change_this_too"
 JWT_REFRESH_EXPIRY="30d"
 
-# CORS
+# CORS & Frontend
 CORS_ORIGINS=http://localhost:5173,http://localhost:5174
+FRONTEND_URL=http://localhost:5173
 
 # AI
 AI_PROVIDER=gemini
 GEMINI_API_KEY="your_gemini_api_key"
 GEMINI_MODEL="gemini-1.5-flash"
+
+# OAuth - Google (optional)
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
+
+# OAuth - GitHub (optional)
+GITHUB_CLIENT_ID="your_github_client_id"
+GITHUB_CLIENT_SECRET="your_github_client_secret"
 
 # Optional
 REDIS_URL="redis://localhost:6379"
@@ -195,7 +223,7 @@ npx prisma generate
 npx prisma db push
 
 # Seed with intelligent data
-npx ts-node scripts/seedAll.ts
+npx tsx scripts/seedAll.ts
 ```
 
 ---
@@ -255,7 +283,6 @@ npx prisma db push      # Push schema to MongoDB
 npm run dev              # Dev server (port 5173)
 npm run build            # Production build
 npm run preview          # Preview build
-npm run lint             # Run ESLint
 ```
 
 ### Seeding
@@ -264,12 +291,12 @@ npm run lint             # Run ESLint
 cd backend
 
 # Seed all data (careers, roadmaps, jobs)
-npx ts-node scripts/seedAll.ts
+npx tsx scripts/seedAll.ts
 
 # Or individual seeds
-npx ts-node scripts/seedCareers.ts
-npx ts-node scripts/seedRoadmaps.ts
-npx ts-node scripts/seedJobs.ts
+npx tsx scripts/seedCareers.ts
+npx tsx scripts/seedRoadmaps.ts
+npx tsx scripts/seedJobs.ts
 ```
 
 ---
@@ -310,8 +337,12 @@ npx ts-node scripts/seedJobs.ts
 ```
 POST   /api/auth/register      - Create account
 POST   /api/auth/login         - Login
-POST   /api/auth/refresh       - Refresh token
+POST   /api/auth/refresh-token - Refresh token
 POST   /api/auth/logout        - Logout
+GET    /api/auth/me            - Get current user
+PATCH  /api/auth/me            - Update profile
+GET    /api/auth/google        - Start Google OAuth
+GET    /api/auth/github        - Start GitHub OAuth
 ```
 
 ### Assessment & Careers
@@ -346,16 +377,29 @@ GET    /api/ai/suggestions     - AI suggestions
 ## 🗄️ Database Schema
 
 **Collections**:
-- `User` - User profiles
+- `User` - User profiles with XP, streak, and skills
+- `SocialAccount` - Linked OAuth accounts (Google, GitHub)
+- `GithubRepository` - Synced GitHub repositories
+- `RefreshToken` - JWT refresh token storage
 - `Career` - Career definitions
-- `CareerSkillMapping` - Required skills
-- `CareerInterestMapping` - Interest alignment
+- `CareerSkillMapping` - Required skills per career
+- `CareerInterestMapping` - Interest alignment per career
+- `Skill` - Structured skill definitions with modules
+- `WeeklyModule` - Weekly learning modules per skill
+- `DailyTask` - Daily tasks with XP rewards
+- `Resource` - Learning resources per task
 - `Roadmap` - Learning paths
 - `Week`, `Day`, `Task` - Roadmap structure
 - `Job` - Job listings
+- `JobApplication` - User job applications
 - `AssessmentResult` - Assessment results
+- `AssessmentSession` - Session snapshots
 - `UserProgress` - Learning progress
 - `UserAchievement` - Unlocked achievements
+- `AIMemoryProfile` - Persistent AI personalization data
+- `PersonalityProfile` - Mentor type and learning style
+- `LearningVelocity` - Pacing and velocity metrics
+- `DecisionSnapshot` - Adaptive engine decision history
 
 ---
 
@@ -365,7 +409,7 @@ GET    /api/ai/suggestions     - AI suggestions
 
 ```bash
 cd backend
-npx ts-node scripts/smokeTestv2.ts
+npx tsx scripts/smokeTestv2.ts
 
 # Expected: 5+ tests pass ✅
 ```
@@ -457,7 +501,10 @@ npx prisma generate
 - `JWT_REFRESH_SECRET` - Another random string
 - `GEMINI_API_KEY` - From Google AI
 - `CORS_ORIGINS` - Your domain(s)
+- `FRONTEND_URL` - Frontend URL (for OAuth callbacks)
 - `NODE_ENV` - "production"
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - For Google OAuth (optional)
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` - For GitHub OAuth (optional)
 
 ### Docker
 
