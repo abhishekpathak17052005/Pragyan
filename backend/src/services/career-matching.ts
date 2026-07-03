@@ -479,18 +479,31 @@ class CareerMatchingEngine {
    * Get top career match for a user
    */
   async getTopCareerMatch(userId: string): Promise<any | null> {
-    return prisma.careerMatch.findFirst({
-      where: { userId },
-      include: {
-        career: {
-          include: {
-            skillMappings: true,
-            interestMappings: true,
-          },
-        },
-      },
-      orderBy: { matchScore: 'desc' },
-    });
+    const client = new MongoClient(this.mongoUrl);
+
+    try {
+      await client.connect();
+      const db = client.db('Pragyan');
+
+      // Find top match while skipping documents with null careerId (these cause Prisma P2032)
+      const match = await db
+        .collection('CareerMatch')
+        .find({ userId, careerId: { $ne: null } })
+        .sort({ matchScore: -1 })
+        .limit(1)
+        .next();
+
+      if (!match) return null;
+
+      // Enrich with career details from Career collection (fallback to careerTitle)
+      const career = await db.collection('Career').findOne({ _id: match.careerId });
+      return {
+        ...match,
+        career: career || { title: match.careerTitle },
+      };
+    } finally {
+      await client.close();
+    }
   }
 
   /**

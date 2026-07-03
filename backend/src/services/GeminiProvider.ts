@@ -58,6 +58,18 @@ export class GeminiProvider extends AIProviderBase {
       systemInstruction: this.secureGemini.systemInstruction(systemInstruction),
     } as any);
 
+    const generationConfig: Record<string, unknown> = {
+      temperature: opts?.temperature ?? 0.2,
+      maxOutputTokens: opts?.maxTokens ?? 900,
+    };
+
+    if (responseMimeType) {
+      generationConfig.responseMimeType = responseMimeType;
+      if (responseMimeType === 'application/json') {
+        generationConfig.responseSchema = { type: 'object' };
+      }
+    }
+
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: safePrompt }] }],
       safetySettings: [
@@ -66,16 +78,12 @@ export class GeminiProvider extends AIProviderBase {
         { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
       ],
-      generationConfig: {
-        temperature: opts?.temperature ?? 0.2,
-        maxOutputTokens: opts?.maxTokens ?? 900,
-        ...(responseMimeType ? { responseMimeType } : {}),
-      },
+      generationConfig,
     } as any);
 
     const response = await result.response;
     const text = typeof response.text === 'function'
-      ? response.text()
+      ? await response.text()
       : String(response?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
 
     const tokensUsed = Number(response?.usageMetadata?.totalTokenCount || 0) || undefined;

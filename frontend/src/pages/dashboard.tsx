@@ -24,12 +24,16 @@ export default function Dashboard() {
     queryKey: ["dashboard"],
     queryFn: dashboardService.getDashboard,
     retry: false,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
   });
 
   const { data: recommendations = [], isLoading: recommendationsLoading } = useQuery({
     queryKey: ["ai", "recommend-careers"],
     queryFn: aiService.getCareerRecommendations,
     retry: false,
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 
   const firstName = useMemo(() => getFirstName(user?.fullName), [user?.fullName]);

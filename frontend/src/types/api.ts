@@ -187,6 +187,111 @@ export interface RoadmapSummary {
   weeks?: RoadmapWeek[];
 }
 
+export type CareerResourceType =
+  | 'DOCUMENTATION'
+  | 'VIDEO'
+  | 'NOTES'
+  | 'PRACTICE'
+  | 'ARTICLE'
+  | 'CHEATSHEET'
+  | 'BOOK'
+  | 'PROJECT'
+  | 'MINI_PROJECT'
+  | 'ASSIGNMENT'
+  | 'INTERVIEW_QUESTION'
+  | 'CERTIFICATION'
+  | 'REFERENCE';
+
+export interface CareerResource {
+  id: string;
+  type: CareerResourceType;
+  resourceType?: CareerResourceType;
+  title: string;
+  provider: string;
+  url: string;
+  description?: string | null;
+  thumbnail?: string | null;
+  duration?: string | null;
+  estimatedDuration?: string | null;
+  free?: boolean;
+  isFree?: boolean;
+  verified?: boolean;
+  rating?: number | null;
+  language?: string | null;
+  difficulty?: string | null;
+  displayOrder?: number;
+  tags?: string[];
+  order?: number;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface CareerTopic {
+  id: string;
+  title: string;
+  description?: string | null;
+  difficulty: string;
+  estimatedTime: string;
+  order: number;
+  quizUrl?: string | null;
+  miniProjectUrl?: string | null;
+  progress?: unknown;
+  resources?: CareerResource[];
+}
+
+export interface CareerDay {
+  id: string;
+  dayNumber: number;
+  title: string;
+  description?: string | null;
+  topics?: CareerTopic[];
+}
+
+export interface CareerWeek {
+  id: string;
+  moduleId?: string | null;
+  weekNumber: number;
+  title: string;
+  description?: string | null;
+  weeklyRevision?: string | null;
+  weeklyQuiz?: string | null;
+  handsOnAssignment?: string | null;
+  miniProject?: string | null;
+  days?: CareerDay[];
+}
+
+export interface CareerModule {
+  id: string;
+  moduleNumber: number;
+  title: string;
+  description?: string | null;
+  moduleAssessment?: string | null;
+  realWorldProject?: string | null;
+  interviewQuestions?: string[];
+  commonMistakes?: string[];
+  industryTips?: string[];
+  weeks?: CareerWeek[];
+}
+
+export interface CareerRoadmapSummary {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  totalWeeks: number;
+  version?: number;
+  generatedBy?: string;
+  generatedAt?: string;
+  approved?: boolean;
+  status?: 'draft' | 'approved' | string;
+  templateKey?: string | null;
+  createdAt?: string;
+}
+
+export interface CareerRoadmap extends CareerRoadmapSummary {
+  modules?: CareerModule[];
+  weeks: CareerWeek[];
+}
+
 export interface LearningResourceItem {
   id?: string;
   title: string;

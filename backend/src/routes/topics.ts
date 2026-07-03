@@ -3,7 +3,7 @@ import * as careerRoadmapController from '@/modules/career-roadmap/career-roadma
 
 const router = Router();
 
-router.get('/', careerRoadmapController.getCareers);
-router.get('/:slug', careerRoadmapController.getCareerBySlug);
+router.get('/:id', careerRoadmapController.getTopicById);
+router.get('/:id/resources', careerRoadmapController.getTopicResources);
 
 export default router;

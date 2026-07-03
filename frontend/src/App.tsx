@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,21 +11,41 @@ import AuthPage from "@/pages/auth";
 import AuthSuccess from "@/pages/auth-success";
 import ForgotPassword from "@/pages/forgot-password";
 import Home from "@/pages/home";
-import Dashboard from "@/pages/dashboard";
-import Assessments from "@/pages/assessments";
-import Resources from "@/pages/resources";
-import Certificates from "@/pages/certificates";
-import Profile from "@/pages/profile";
-import Skills from "@/pages/skills";
-import Information from "@/pages/information";
-import EditInformation from "@/pages/edit-information";
-import CareerReadiness from "@/pages/career-readiness";
-import Roadmap from "@/pages/roadmap";
-import CareerDiscovery from "@/pages/career-discovery";
-import AICounselor from "@/pages/ai-counselor";
-import SettingsPage from "@/pages/settings";
 
-const queryClient = new QueryClient();
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Assessments = lazy(() => import("@/pages/assessments"));
+const Resources = lazy(() => import("@/pages/resources"));
+const Certificates = lazy(() => import("@/pages/certificates"));
+const Profile = lazy(() => import("@/pages/profile"));
+const Skills = lazy(() => import("@/pages/skills"));
+const Information = lazy(() => import("@/pages/information"));
+const EditInformation = lazy(() => import("@/pages/edit-information"));
+const CareerReadiness = lazy(() => import("@/pages/career-readiness"));
+const Roadmap = lazy(() => import("@/pages/roadmap"));
+const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
+const AICounselor = lazy(() => import("@/pages/ai-counselor"));
+const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmaps"));
+const AdminRoadmapReview = lazy(() => import("@/pages/admin-roadmap-review"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      Loading page...
+    </div>
+  );
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 2 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
+    },
+  },
+});
 
 function Router() {
   return (
@@ -38,25 +59,29 @@ function Router() {
       <Route>
         <RequireAuth>
           <Layout>
-            <Switch>
-              <Route path="/home" component={Home} />
-              <Route path="/dashboard" component={Dashboard} />
-              <Route path="/assessments" component={Assessments} />
-              <Route path="/resources" component={Resources} />
-              <Route path="/resources/certificates" component={Certificates} />
-              <Route path="/profile" component={Profile} />
-              <Route path="/profile/skills" component={Skills} />
-              <Route path="/information" component={Information} />
-              <Route path="/information/edit" component={EditInformation} />
-              <Route path="/information/career-readiness" component={CareerReadiness} />
+            <Suspense fallback={<RouteFallback />}>
+              <Switch>
+                <Route path="/home" component={Home} />
+                <Route path="/dashboard" component={Dashboard} />
+                <Route path="/assessments" component={Assessments} />
+                <Route path="/resources" component={Resources} />
+                <Route path="/resources/certificates" component={Certificates} />
+                <Route path="/profile" component={Profile} />
+                <Route path="/profile/skills" component={Skills} />
+                <Route path="/information" component={Information} />
+                <Route path="/information/edit" component={EditInformation} />
+                <Route path="/information/career-readiness" component={CareerReadiness} />
 
-              <Route path="/career-discovery" component={CareerDiscovery} />
-              <Route path="/ai-counselor" component={AICounselor} />
-              <Route path="/roadmap" component={Roadmap} />
-              <Route path="/settings" component={SettingsPage} />
+                <Route path="/career-discovery" component={CareerDiscovery} />
+                <Route path="/ai-counselor" component={AICounselor} />
+                <Route path="/roadmap" component={Roadmap} />
+                <Route path="/admin/roadmap-review" component={AdminRoadmapReview} />
+                <Route path="/admin/roadmaps" component={AdminRoadmapManager} />
+                <Route path="/settings" component={SettingsPage} />
 
-              <Route component={NotFound} />
-            </Switch>
+                <Route component={NotFound} />
+              </Switch>
+            </Suspense>
           </Layout>
         </RequireAuth>
       </Route>

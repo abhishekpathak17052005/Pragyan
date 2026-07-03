@@ -10,5 +10,5 @@ export function requireRecruiter(req: Request, res: Response, next: NextFunction
     return sendError(res, 403, 'Recruiter access required');
   }
 
-  next();
+  return next();
 }

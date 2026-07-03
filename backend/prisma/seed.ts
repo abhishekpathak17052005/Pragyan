@@ -280,7 +280,7 @@ async function main() {
 
     const adminId = new ObjectId();
     const sampleUserIds = [new ObjectId(), new ObjectId(), new ObjectId()];
-    const adminPassword = await hashPassword('admin123');
+    const adminPassword = await hashPassword('admin17052005');
     const userPassword = await hashPassword('user123');
 
     const users = [

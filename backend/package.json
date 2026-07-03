@@ -14,6 +14,7 @@
     "seed:roadmaps": "tsx scripts/seedRoadmapCatalog.ts",
     "db:create-roadmap-index": "tsx scripts/createTextIndexes.ts",
     "sync-admin-email": "tsx scripts/syncAdminEmail.ts",
+    "admin:reset": "tsx scripts/syncAdminEmail.ts && tsx scripts/verifyAdminEmail.ts",
     "verify-admin-email": "tsx scripts/verifyAdminEmail.ts",
     "test": "jest --runInBand --detectOpenHandles --coverage",
     "ci": "npm run build && npm test"
