@@ -2,18 +2,25 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env' });
 
+import dns from 'dns';
 import { MongoClient, ObjectId } from 'mongodb';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/utils/password';
 
 const email = (process.env.ADMIN_EMAIL || process.argv[2] || 'admin@pragyan.com').trim().toLowerCase();
-const password = process.env.ADMIN_PASSWORD || process.argv[3] || 'admin123';
+const password = process.env.ADMIN_PASSWORD || process.argv[3] || 'admin17052005';
 const mongoUrl = process.env.MONGO_DIRECT_URL || process.env.MONGODB_URI || process.env.DATABASE_URL;
 const mongoDbName = process.env.DB_NAME || 'Pragyan';
 
 async function main() {
   if (!mongoUrl) {
     throw new Error('DATABASE_URL or MONGO_DIRECT_URL is required');
+  }
+
+  try {
+    dns.setServers(['8.8.8.8', '8.8.4.4']);
+  } catch {
+    // Ignore when the host does not allow DNS changes.
   }
 
   const now = new Date();
@@ -67,7 +74,6 @@ async function main() {
       { email },
       {
         $set: {
-          _id: mongoId,
           email,
           fullName: 'Admin User',
           password: hashedPassword,
@@ -99,7 +105,6 @@ async function main() {
       { email },
       {
         $set: {
-          _id: mongoId,
           userId: mongoId,
           email,
           fullName: 'Admin User',
@@ -125,19 +130,22 @@ async function main() {
       { upsert: true }
     );
 
-    await adminUsersCollection.replaceOne(
+    await adminUsersCollection.updateOne(
       { email },
       {
-        _id: mongoId,
-        userId: mongoId,
-        email,
-        fullName: 'Admin User',
-        role: 'ADMIN',
-        xp: 1000,
-        streak: 0,
-        active: true,
-        createdAt: now,
-        updatedAt: now,
+        $set: {
+          userId: mongoId,
+          email,
+          fullName: 'Admin User',
+          role: 'ADMIN',
+          xp: 1000,
+          streak: 0,
+          active: true,
+          updatedAt: now,
+        },
+        $setOnInsert: {
+          createdAt: now,
+        },
       },
       { upsert: true }
     );

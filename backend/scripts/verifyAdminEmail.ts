@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env' });
 
+import dns from 'dns';
 import { MongoClient } from 'mongodb';
 
 const email = (process.env.ADMIN_EMAIL || process.argv[2] || 'admin@pragyan.com').trim().toLowerCase();
@@ -11,6 +12,12 @@ const mongoDbName = process.env.DB_NAME || 'Pragyan';
 async function main() {
   if (!mongoUrl) {
     throw new Error('DATABASE_URL or MONGO_DIRECT_URL is required');
+  }
+
+  try {
+    dns.setServers(['8.8.8.8', '8.8.4.4']);
+  } catch {
+    // Ignore when the host does not allow DNS changes.
   }
 
   const client = new MongoClient(mongoUrl);
