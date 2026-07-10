@@ -24,8 +24,7 @@ const CareerReadiness = lazy(() => import("@/pages/career-readiness"));
 const Roadmap = lazy(() => import("@/pages/roadmap"));
 const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
-const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmaps"));
-const AdminRoadmapReview = lazy(() => import("@/pages/admin-roadmap-review"));
+const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-simple"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 
 function RouteFallback() {
@@ -75,7 +74,6 @@ function Router() {
                 <Route path="/career-discovery" component={CareerDiscovery} />
                 <Route path="/ai-counselor" component={AICounselor} />
                 <Route path="/roadmap" component={Roadmap} />
-                <Route path="/admin/roadmap-review" component={AdminRoadmapReview} />
                 <Route path="/admin/roadmaps" component={AdminRoadmapManager} />
                 <Route path="/settings" component={SettingsPage} />
 

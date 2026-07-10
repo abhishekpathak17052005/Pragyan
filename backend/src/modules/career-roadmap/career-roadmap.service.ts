@@ -2,16 +2,24 @@ import { prisma } from '@/lib/prisma';
 import { NotFoundError } from '@/utils/errors';
 import {
   CreateCareerInput,
+  CreateModuleInput,
   CreateDayInput,
   ListResourceInput,
   CreateResourceInput,
+  GenerateCareerRoadmapInput,
   CreateTopicInput,
   CreateWeekInput,
+  ReorderItemsInput,
   ReorderResourcesInput,
   SearchTopicsInput,
+  UpdateCareerInput,
+  UpdateDayInput,
+  UpdateModuleInput,
   UpdateResourceInput,
+  UpdateTopicInput,
+  UpdateWeekInput,
 } from './career-roadmap.validators';
-import { Prisma, ResourceType } from '@prisma/client';
+import { ResourceType } from '@prisma/client';
 
 function slugify(value: string) {
   return value
@@ -22,9 +30,7 @@ function slugify(value: string) {
 }
 
 function normalizeOptionalUrl(value?: string | null | unknown) {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
+  if (typeof value !== 'string') return undefined;
 
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
@@ -36,18 +42,201 @@ function normalizeResourceType(input?: string | null): ResourceType {
   if (normalized === 'MINI_PROJECT' || normalized === 'ASSIGNMENT' || normalized === 'INTERVIEW_QUESTION') {
     return ResourceType.PROJECT;
   }
-  if (normalized in ResourceType) {
-    return ResourceType[normalized as keyof typeof ResourceType];
-  }
-  return ResourceType.DOCUMENTATION;
+  if (normalized === 'NOTES' || normalized === 'REFERENCE') return ResourceType.ARTICLE;
+  if (normalized === 'CERTIFICATION') return ResourceType.COURSE;
+  if (normalized in ResourceType) return ResourceType[normalized as keyof typeof ResourceType];
+  return ResourceType.OTHER;
 }
 
-function normalizeTags(value?: unknown) {
-  if (!Array.isArray(value)) return [] as string[];
+type GeneratedResource = {
+  type: ResourceType;
+  title: string;
+  provider: string;
+  url: string;
+};
+
+type GeneratedTopic = {
+  title: string;
+  objective: string;
+  resources: GeneratedResource[];
+};
+
+type GeneratedDay = {
+  title: string;
+  description: string;
+  topics: GeneratedTopic[];
+};
+
+type GeneratedWeek = {
+  title: string;
+  description: string;
+  days: GeneratedDay[];
+};
+
+type GeneratedModule = {
+  title: string;
+  description: string;
+  weeks: GeneratedWeek[];
+};
+
+const ROLE_SKILLS: Record<string, string[]> = {
+  frontend: ['HTML semantics', 'CSS layouts', 'JavaScript fundamentals', 'TypeScript basics', 'React components', 'API integration'],
+  backend: ['Programming fundamentals', 'Node.js basics', 'REST APIs', 'Databases', 'Authentication', 'Testing'],
+  fullstack: ['Frontend foundations', 'Backend APIs', 'Databases', 'Authentication', 'Deployment', 'System design'],
+  data: ['Python basics', 'SQL fundamentals', 'Statistics', 'Pandas', 'Visualization', 'Machine learning'],
+  ai: ['Python basics', 'Data preparation', 'Machine learning', 'LLM workflows', 'Model evaluation', 'Deployment'],
+  cyber: ['Networking basics', 'Linux commands', 'Web security', 'OWASP risks', 'Threat modeling', 'Incident response'],
+  default: ['Programming fundamentals', 'Problem solving', 'Web foundations', 'APIs', 'Databases', 'Portfolio projects'],
+};
+
+function resolveSkillTrack(careerGoal: string) {
+  const normalized = careerGoal.toLowerCase();
+  if (/(front|ui|react|web)/.test(normalized)) return ROLE_SKILLS.frontend;
+  if (/(back|api|server|node)/.test(normalized)) return ROLE_SKILLS.backend;
+  if (/(full.?stack|software|developer|programmer)/.test(normalized)) return ROLE_SKILLS.fullstack;
+  if (/(data|analyst|analytics)/.test(normalized)) return ROLE_SKILLS.data;
+  if (/(ai|ml|machine learning|artificial intelligence)/.test(normalized)) return ROLE_SKILLS.ai;
+  if (/(cyber|security|ethical hacking|soc)/.test(normalized)) return ROLE_SKILLS.cyber;
+  return ROLE_SKILLS.default;
+}
+
+function titleCase(value: string) {
   return value
-    .map((item) => String(item || '').trim())
+    .split(/\s+/)
     .filter(Boolean)
-    .slice(0, 20);
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function searchUrl(query: string) {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+}
+
+function docsUrl(topic: string) {
+  const normalized = topic.toLowerCase();
+  if (normalized.includes('python')) return 'https://www.w3schools.com/python/';
+  if (normalized.includes('sql') || normalized.includes('database')) return 'https://www.w3schools.com/sql/';
+  if (normalized.includes('react')) return 'https://react.dev/learn';
+  if (normalized.includes('javascript')) return 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide';
+  if (normalized.includes('typescript')) return 'https://www.typescriptlang.org/docs/';
+  if (normalized.includes('css')) return 'https://developer.mozilla.org/en-US/docs/Learn/CSS';
+  if (normalized.includes('html')) return 'https://developer.mozilla.org/en-US/docs/Learn/HTML';
+  if (normalized.includes('node') || normalized.includes('api')) return 'https://nodejs.org/en/learn';
+  if (normalized.includes('security') || normalized.includes('owasp')) return 'https://owasp.org/www-project-top-ten/';
+  return 'https://roadmap.sh/';
+}
+
+function buildGeneratedModules(careerGoal: string, skillLevel = 'beginner'): GeneratedModule[] {
+  const skills = resolveSkillTrack(careerGoal);
+  const level = titleCase(skillLevel);
+  const moduleNames = ['Foundations', 'Applied Practice', 'Project Sprint'];
+
+  return moduleNames.map((moduleName, moduleIndex) => {
+    const moduleSkills = skills.slice(moduleIndex * 2, moduleIndex * 2 + 2);
+    const fallbackSkill = skills[moduleIndex] || skills[0];
+
+    return {
+      title: `${moduleName} for ${titleCase(careerGoal)}`,
+      description: `${level} learning block focused on ${moduleSkills.join(' and ') || fallbackSkill}.`,
+      weeks: [0, 1].map((weekOffset) => {
+        const weekSkill = moduleSkills[weekOffset] || fallbackSkill;
+        return {
+          title: `Week ${moduleIndex * 2 + weekOffset + 1}: ${titleCase(weekSkill)}`,
+          description: `Build confidence in ${weekSkill} with guided learning and practice.`,
+          days: [0, 1, 2].map((dayOffset) => {
+            const dayNumber = dayOffset + 1;
+            const topicTitle = dayOffset === 2 ? `${weekSkill} mini project` : `${weekSkill} ${dayOffset === 0 ? 'concepts' : 'practice'}`;
+            return {
+              title: `Day ${dayNumber}: ${titleCase(topicTitle)}`,
+              description: `Study, practice, and capture notes for ${topicTitle}.`,
+              topics: [
+                {
+                  title: titleCase(topicTitle),
+                  objective: `Understand ${topicTitle} and complete one practical exercise.`,
+                  resources: [
+                    {
+                      type: ResourceType.DOCUMENTATION,
+                      title: `${titleCase(weekSkill)} reference`,
+                      provider: 'Official docs',
+                      url: docsUrl(weekSkill),
+                    },
+                    {
+                      type: ResourceType.VIDEO,
+                      title: `${titleCase(weekSkill)} tutorial`,
+                      provider: 'YouTube',
+                      url: searchUrl(`${careerGoal} ${weekSkill} ${skillLevel} tutorial`),
+                    },
+                    {
+                      type: dayOffset === 2 ? ResourceType.PROJECT : ResourceType.PRACTICE,
+                      title: dayOffset === 2 ? `Build a ${titleCase(weekSkill)} mini project` : `Practice ${titleCase(weekSkill)}`,
+                      provider: dayOffset === 2 ? 'GitHub' : 'W3Schools',
+                      url: dayOffset === 2
+                        ? `https://github.com/search?q=${encodeURIComponent(`${careerGoal} ${weekSkill} project`)}&type=repositories`
+                        : 'https://www.w3schools.com/tryit/',
+                    },
+                  ],
+                },
+              ],
+            };
+          }),
+        };
+      }),
+    };
+  });
+}
+
+function getCareerTitle(input: CreateCareerInput) {
+  return (input.title || input.name || '').trim();
+}
+
+function mapCareerSummary(career: {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  thumbnail: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  modules?: Array<{ weeks?: unknown[] }>;
+}) {
+  const totalWeeks = career.modules?.reduce((sum, module) => sum + (module.weeks?.length || 0), 0) || 0;
+
+  return {
+    id: career.id,
+    title: career.title,
+    name: career.title,
+    slug: career.slug,
+    description: career.description || '',
+    thumbnail: career.thumbnail,
+    totalWeeks,
+    approved: career.status === 'published',
+    status: career.status,
+    createdAt: career.createdAt,
+    updatedAt: career.updatedAt,
+  };
+}
+
+function mapCareerTree<T extends { modules: Array<{ weeks: unknown[] }> }>(
+  career: T & Parameters<typeof mapCareerSummary>[0]
+) {
+  return {
+    ...career,
+    ...mapCareerSummary(career),
+    weeks: career.modules.flatMap((module) => module.weeks),
+  };
+}
+
+function hasRenderableCareerTree(career: { modules?: Array<{ weeks?: Array<{ days?: Array<{ topics?: Array<{ resources?: unknown[] }> }> }> }> }) {
+  return Boolean(
+    career.modules?.some((module) =>
+      module.weeks?.some((week) =>
+        week.days?.some((day) =>
+          day.topics?.some((topic) => (topic.resources?.length || 0) > 0)
+        )
+      )
+    )
+  );
 }
 
 async function makeUniqueSlug(baseSlug: string) {
@@ -64,66 +253,22 @@ async function makeUniqueSlug(baseSlug: string) {
 }
 
 export class CareerRoadmapService {
-  async listCareers() {
-    const careers = await prisma.careerRoadmap.findMany({
-      where: { approved: true, status: 'approved' },
-      orderBy: [{ generatedAt: 'desc' }, { createdAt: 'desc' }],
-    });
-
-    return careers.map((career) => ({
-      id: career.id,
-      name: career.name,
-      slug: career.slug,
-      description: career.description,
-      totalWeeks: career.totalWeeks,
-      version: career.version,
-      generatedBy: career.generatedBy,
-      generatedAt: career.generatedAt,
-      approved: career.approved,
-      status: career.status,
-      templateKey: career.templateKey,
-      createdAt: career.createdAt,
-    }));
-  }
-
-  async getCareerBySlug(slug: string) {
-    const career = await prisma.careerRoadmap.findFirst({
-      where: { slug, approved: true, status: 'approved' },
-      orderBy: [{ generatedAt: 'desc' }, { version: 'desc' }],
-      include: {
-        weeks: {
-          orderBy: { weekNumber: 'asc' },
-          include: {
-            days: {
-              orderBy: { dayNumber: 'asc' },
-              include: {
-                topics: {
-                  orderBy: { order: 'asc' },
-                  include: {
-                    resources: {
-                      orderBy: { order: 'asc' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        modules: {
-          orderBy: { moduleNumber: 'asc' },
-          include: {
-            weeks: {
-              orderBy: { weekNumber: 'asc' },
-              include: {
-                days: {
-                  orderBy: { dayNumber: 'asc' },
-                  include: {
-                    topics: {
-                      orderBy: { order: 'asc' },
-                      include: {
-                        resources: {
-                          orderBy: { order: 'asc' },
-                        },
+  private careerTreeInclude() {
+    return {
+      modules: {
+        orderBy: { order: 'asc' as const },
+        include: {
+          weeks: {
+            orderBy: { order: 'asc' as const },
+            include: {
+              days: {
+                orderBy: { order: 'asc' as const },
+                include: {
+                  topics: {
+                    orderBy: { order: 'asc' as const },
+                    include: {
+                      resources: {
+                        orderBy: { displayOrder: 'asc' as const },
                       },
                     },
                   },
@@ -133,13 +278,123 @@ export class CareerRoadmapService {
           },
         },
       },
+    };
+  }
+
+  async listCareers() {
+    const careers = await prisma.careerRoadmap.findMany({
+      where: { status: 'published' },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        modules: {
+          select: {
+            weeks: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    return careers.map(mapCareerSummary);
+  }
+
+  async listAdminCareers() {
+    const careers = await prisma.careerRoadmap.findMany({
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      include: this.careerTreeInclude(),
+    });
+
+    return careers.map(mapCareerTree);
+  }
+
+  async generateCareerRoadmap(input: GenerateCareerRoadmapInput) {
+    const title = `${titleCase(input.careerGoal)} Roadmap`;
+    const slug = slugify(input.careerGoal);
+    const existing = await prisma.careerRoadmap.findUnique({
+      where: { slug },
+      include: this.careerTreeInclude(),
+    });
+
+    if (existing && hasRenderableCareerTree(existing)) {
+      return mapCareerTree(existing);
+    }
+
+    if (existing) {
+      await prisma.careerRoadmap.delete({ where: { id: existing.id } });
+    }
+
+    const modules = buildGeneratedModules(input.careerGoal, input.skillLevel);
+    const data = {
+      title,
+      slug,
+      description: `A practical ${input.skillLevel || 'beginner'} learning path for ${titleCase(input.careerGoal)} with weekly structure, daily topics, and curated resources.`,
+      status: 'published',
+      modules: {
+        create: modules.map((module, moduleIndex) => ({
+          title: module.title,
+          description: module.description,
+          order: moduleIndex,
+          weeks: {
+            create: module.weeks.map((week, weekIndex) => ({
+              title: week.title,
+              description: week.description,
+              order: weekIndex,
+              days: {
+                create: week.days.map((day, dayIndex) => ({
+                  title: day.title,
+                  description: day.description,
+                  estimatedHours: 2,
+                  order: dayIndex,
+                  dayNumber: dayIndex + 1,
+                  topics: {
+                    create: day.topics.map((topic, topicIndex) => ({
+                      title: topic.title,
+                      objective: topic.objective,
+                      description: topic.objective,
+                      order: topicIndex,
+                      resources: {
+                        create: topic.resources.map((resource, resourceIndex) => ({
+                          title: resource.title,
+                          provider: resource.provider,
+                          url: resource.url,
+                          type: resource.type,
+                          free: true,
+                          verified: resource.type === ResourceType.DOCUMENTATION,
+                          displayOrder: resourceIndex,
+                          difficulty: input.skillLevel || 'beginner',
+                        })),
+                      },
+                    })),
+                  },
+                })),
+              },
+            })),
+          },
+        })),
+      },
+    };
+
+    const career = await prisma.careerRoadmap.create({
+      data: data as any,
+      include: this.careerTreeInclude(),
+    });
+
+    return mapCareerTree(career);
+  }
+
+  async getCareerBySlug(slug: string) {
+    const career = await prisma.careerRoadmap.findFirst({
+      where: { slug, status: 'published' },
+      orderBy: [{ updatedAt: 'desc' }],
+      include: this.careerTreeInclude(),
     });
 
     if (!career) {
       throw new NotFoundError('Career roadmap not found');
     }
 
-    return career;
+    return mapCareerTree(career);
   }
 
   async getTopicById(id: string) {
@@ -147,13 +402,17 @@ export class CareerRoadmapService {
       where: { id },
       include: {
         resources: {
-          orderBy: { order: 'asc' },
+          orderBy: { displayOrder: 'asc' },
         },
         day: {
           include: {
             week: {
               include: {
-                career: true,
+                module: {
+                  include: {
+                    career: true,
+                  },
+                },
               },
             },
           },
@@ -169,95 +428,134 @@ export class CareerRoadmapService {
   }
 
   async getLatestApprovedCareerBySlug(slug: string) {
-    const career = await prisma.careerRoadmap.findFirst({
-      where: { slug, approved: true, status: 'approved' },
-      orderBy: [{ generatedAt: 'desc' }, { version: 'desc' }],
-      include: {
-        weeks: {
-          orderBy: { weekNumber: 'asc' },
-          include: {
-            days: {
-              orderBy: { dayNumber: 'asc' },
-              include: {
-                topics: {
-                  orderBy: { order: 'asc' },
-                  include: {
-                    resources: { orderBy: { order: 'asc' } },
-                  },
-                },
-              },
-            },
-          },
-        },
-        modules: {
-          orderBy: { moduleNumber: 'asc' },
-          include: {
-            weeks: {
-              orderBy: { weekNumber: 'asc' },
-              include: {
-                days: {
-                  orderBy: { dayNumber: 'asc' },
-                  include: {
-                    topics: {
-                      orderBy: { order: 'asc' },
-                      include: {
-                        resources: { orderBy: { order: 'asc' } },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!career) {
-      throw new NotFoundError('Career roadmap not found');
-    }
-
-    return career;
+    return this.getCareerBySlug(slug);
   }
 
   async createCareer(input: CreateCareerInput) {
-    const slug = await makeUniqueSlug(input.slug || input.name);
+    const title = getCareerTitle(input);
+    const slug = await makeUniqueSlug(input.slug || title);
 
     return prisma.careerRoadmap.create({
       data: {
-        name: input.name,
+        title,
         slug,
         description: input.description,
-        totalWeeks: input.totalWeeks,
-        version: 1,
-        generatedBy: 'admin',
-        generatedAt: new Date(),
-        approved: true,
-        status: 'approved',
+        thumbnail: normalizeOptionalUrl(input.thumbnail),
+        status: input.status || 'published',
       },
     });
   }
 
-  async createWeek(input: CreateWeekInput) {
-    return prisma.careerRoadmapWeek.create({
+  async updateCareer(id: string, input: UpdateCareerInput) {
+    const title = input.title || input.name;
+    const nextSlug = input.slug ? await makeUniqueSlug(input.slug) : undefined;
+
+    return prisma.careerRoadmap.update({
+      where: { id },
+      data: {
+        ...(title !== undefined ? { title } : {}),
+        ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.thumbnail !== undefined ? { thumbnail: normalizeOptionalUrl(input.thumbnail) } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+      },
+    });
+  }
+
+  async deleteCareer(id: string) {
+    await prisma.careerRoadmap.delete({ where: { id } });
+    return { id };
+  }
+
+  async publishCareer(id: string, published: boolean) {
+    return prisma.careerRoadmap.update({
+      where: { id },
+      data: { status: published ? 'published' : 'draft' },
+    });
+  }
+
+  async createModule(input: CreateModuleInput) {
+    return prisma.careerRoadmapModule.create({
       data: {
         careerId: input.careerId,
-        weekNumber: input.weekNumber,
+        title: input.title,
+        description: input.description,
+        order: input.order ?? 0,
+      },
+    });
+  }
+
+  async updateModule(id: string, input: UpdateModuleInput) {
+    return prisma.careerRoadmapModule.update({
+      where: { id },
+      data: input,
+    });
+  }
+
+  async deleteModule(id: string) {
+    await prisma.careerRoadmapModule.delete({ where: { id } });
+    return { id };
+  }
+
+  async createWeek(input: CreateWeekInput) {
+    const moduleId = input.moduleId || input.careerId;
+    if (!moduleId) {
+      throw new NotFoundError('Module not found');
+    }
+
+    return prisma.careerRoadmapWeek.create({
+      data: {
+        moduleId,
+        order: input.weekNumber,
         title: input.title,
         description: input.description,
       },
     });
+  }
+
+  async updateWeek(id: string, input: UpdateWeekInput) {
+    const { weekNumber, ...rest } = input;
+    return prisma.careerRoadmapWeek.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(weekNumber !== undefined ? { order: weekNumber } : {}),
+      },
+    });
+  }
+
+  async deleteWeek(id: string) {
+    await prisma.careerRoadmapWeek.delete({ where: { id } });
+    return { id };
   }
 
   async createDay(input: CreateDayInput) {
     return prisma.careerRoadmapDay.create({
       data: {
         weekId: input.weekId,
+        order: input.dayNumber,
         dayNumber: input.dayNumber,
         title: input.title,
         description: input.description,
+        estimatedHours: input.estimatedHours || 0,
       },
     });
+  }
+
+  async updateDay(id: string, input: UpdateDayInput) {
+    const { dayNumber, ...rest } = input;
+    return prisma.careerRoadmapDay.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(dayNumber !== undefined ? { order: dayNumber, dayNumber } : {}),
+      },
+    });
+  }
+
+  async deleteDay(id: string) {
+    await prisma.careerRoadmapDay.delete({ where: { id } });
+    return { id };
   }
 
   async createTopic(input: CreateTopicInput) {
@@ -266,57 +564,77 @@ export class CareerRoadmapService {
         dayId: input.dayId,
         title: input.title,
         description: input.description,
-        difficulty: input.difficulty,
-        estimatedTime: input.estimatedTime,
+        objective: input.objective,
         order: input.order,
-        quizUrl: normalizeOptionalUrl(input.quizUrl),
-        miniProjectUrl: normalizeOptionalUrl(input.miniProjectUrl),
-        progress: input.progress as Prisma.InputJsonValue | undefined,
       },
     });
   }
 
+  async updateTopic(id: string, input: UpdateTopicInput) {
+    return prisma.careerRoadmapTopic.update({
+      where: { id },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.objective !== undefined ? { objective: input.objective } : {}),
+        ...(input.order !== undefined ? { order: input.order } : {}),
+      },
+    });
+  }
+
+  async deleteTopic(id: string) {
+    await prisma.careerRoadmapTopic.delete({ where: { id } });
+    return { id };
+  }
+
+  async reorderModules(input: ReorderItemsInput) {
+    await this.reorderModel(input.orderedIds, (id, order) => prisma.careerRoadmapModule.update({ where: { id }, data: { order } }));
+    return { orderedIds: input.orderedIds };
+  }
+
+  async reorderWeeks(input: ReorderItemsInput) {
+    await this.reorderModel(input.orderedIds, (id, order) => prisma.careerRoadmapWeek.update({ where: { id }, data: { order } }));
+    return { orderedIds: input.orderedIds };
+  }
+
+  async reorderDays(input: ReorderItemsInput) {
+    await this.reorderModel(input.orderedIds, (id, order) => prisma.careerRoadmapDay.update({ where: { id }, data: { order } }));
+    return { orderedIds: input.orderedIds };
+  }
+
+  async reorderTopics(input: ReorderItemsInput) {
+    await this.reorderModel(input.orderedIds, (id, order) => prisma.careerRoadmapTopic.update({ where: { id }, data: { order } }));
+    return { orderedIds: input.orderedIds };
+  }
+
+  private async reorderModel<T>(orderedIds: string[], update: (id: string, order: number) => T) {
+    await prisma.$transaction(orderedIds.map((id, order) => update(id, order) as any));
+  }
+
   async addResource(input: CreateResourceInput) {
-    const normalizedType = normalizeResourceType((input as any).resourceType || input.type);
-    const category = String((input as any).resourceType || normalizedType || 'DOCUMENTATION').toUpperCase();
-    const estimatedDuration = (input as any).estimatedDuration || input.duration;
-    const isFree = typeof (input as any).isFree === 'boolean' ? (input as any).isFree : input.free ?? true;
-    const verified = typeof (input as any).verified === 'boolean' ? (input as any).verified : false;
-    const metadata: Record<string, unknown> = {
-      ...(input.metadata as Record<string, unknown> | undefined),
-      resourceType: category,
-      description: (input as any).description,
-      estimatedDuration,
-      rating: (input as any).rating,
-      verified,
-      tags: normalizeTags((input as any).tags),
-    };
+    const isFree = typeof input.isFree === 'boolean' ? input.isFree : input.free ?? true;
+    const verified = typeof input.verified === 'boolean' ? input.verified : false;
 
     return prisma.careerRoadmapResource.create({
       data: {
         topicId: input.topicId,
-        type: normalizedType,
+        type: normalizeResourceType(input.resourceType || input.type),
         title: input.title,
         provider: input.provider,
         url: input.url,
-        thumbnail: normalizeOptionalUrl(input.thumbnail),
-        duration: estimatedDuration,
         free: isFree,
         language: input.language,
         difficulty: input.difficulty,
-        order: input.order ?? 0,
-        metadata: metadata as Prisma.InputJsonValue,
+        verified,
+        displayOrder: input.displayOrder ?? input.order ?? 0,
       },
     });
   }
 
   async updateResource(id: string, input: UpdateResourceInput) {
-    const normalizedType = input.type !== undefined || (input as any).resourceType !== undefined
-      ? normalizeResourceType((input as any).resourceType || input.type)
+    const normalizedType = input.type !== undefined || input.resourceType !== undefined
+      ? normalizeResourceType(input.resourceType || input.type)
       : undefined;
-    const category = (input as any).resourceType ? String((input as any).resourceType).toUpperCase() : undefined;
-    const estimatedDuration = (input as any).estimatedDuration ?? input.duration;
-    const verified = (input as any).verified;
 
     return prisma.careerRoadmapResource.update({
       where: { id },
@@ -326,27 +644,13 @@ export class CareerRoadmapService {
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.provider !== undefined ? { provider: input.provider } : {}),
         ...(input.url !== undefined ? { url: input.url } : {}),
-        ...(input.thumbnail !== undefined ? { thumbnail: normalizeOptionalUrl(input.thumbnail) } : {}),
-        ...(estimatedDuration !== undefined ? { duration: estimatedDuration } : {}),
-        ...((input as any).isFree !== undefined ? { free: Boolean((input as any).isFree) } : {}),
+        ...(input.isFree !== undefined ? { free: Boolean(input.isFree) } : {}),
         ...(input.free !== undefined ? { free: input.free } : {}),
         ...(input.language !== undefined ? { language: input.language } : {}),
         ...(input.difficulty !== undefined ? { difficulty: input.difficulty } : {}),
-        ...(input.order !== undefined ? { order: input.order } : {}),
-        ...(typeof verified === 'boolean' ? { aiScore: typeof (input as any).rating === 'number' ? (input as any).rating : undefined } : {}),
-        ...((input as any).description !== undefined || (input as any).rating !== undefined || (input as any).verified !== undefined || category !== undefined || (input as any).tags !== undefined || input.metadata !== undefined
-          ? {
-              metadata: {
-                ...(input.metadata as Record<string, unknown> | undefined),
-                ...(category !== undefined ? { resourceType: category } : {}),
-                ...((input as any).description !== undefined ? { description: (input as any).description } : {}),
-                ...((input as any).rating !== undefined ? { rating: (input as any).rating } : {}),
-                ...((input as any).verified !== undefined ? { verified: (input as any).verified } : {}),
-                ...((input as any).tags !== undefined ? { tags: normalizeTags((input as any).tags) } : {}),
-                ...(estimatedDuration !== undefined ? { estimatedDuration } : {}),
-              } as Prisma.InputJsonValue,
-            }
-          : {}),
+        ...(input.verified !== undefined ? { verified: input.verified } : {}),
+        ...(input.displayOrder !== undefined ? { displayOrder: input.displayOrder } : {}),
+        ...(input.order !== undefined ? { displayOrder: input.order } : {}),
       },
     });
   }
@@ -379,8 +683,10 @@ export class CareerRoadmapService {
             {
               day: {
                 week: {
-                  career: {
-                    name: { contains: q, mode: 'insensitive' as const },
+                  module: {
+                    career: {
+                      title: { contains: q, mode: 'insensitive' as const },
+                    },
                   },
                 },
               },
@@ -400,14 +706,18 @@ export class CareerRoadmapService {
         ],
         include: {
           resources: {
-            orderBy: { order: 'asc' },
+            orderBy: { displayOrder: 'asc' },
           },
           day: {
             include: {
               week: {
                 include: {
-                  career: {
-                    select: { id: true, name: true, slug: true },
+                  module: {
+                    include: {
+                      career: {
+                        select: { id: true, title: true, slug: true },
+                      },
+                    },
                   },
                 },
               },
@@ -439,7 +749,7 @@ export class CareerRoadmapService {
       ids.map((id, index) =>
         prisma.careerRoadmapResource.update({
           where: { id },
-          data: { order: index },
+          data: { displayOrder: index },
         })
       )
     );
@@ -458,7 +768,7 @@ export class CareerRoadmapService {
         ...(normalizedType ? { type: normalizedType } : {}),
       },
       orderBy: [
-        { order: 'asc' },
+        { displayOrder: 'asc' },
         { createdAt: 'desc' },
       ],
       include: {
@@ -466,8 +776,6 @@ export class CareerRoadmapService {
           select: {
             id: true,
             title: true,
-            difficulty: true,
-            estimatedTime: true,
           },
         },
       },

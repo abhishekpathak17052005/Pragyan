@@ -1,5 +1,7 @@
 import { api } from '@/services/apiClient';
 import type {
+  CareerDay,
+  CareerModule,
   CareerRoadmap,
   CareerRoadmapSummary,
   CareerResource,
@@ -9,107 +11,148 @@ import type {
 } from '@/types/api';
 
 export type CareerTopicSearchResult = CareerTopic & {
-  day?: { id: string; title: string; dayNumber: number; week?: { id: string; title: string; weekNumber: number; career?: { id: string; name: string; slug: string } } };
-};
-
-export type GeneratedRoadmapResponse = {
-  roadmap: GeneratedRoadmap;
-  source: 'gemini' | 'fallback';
-  model?: string;
-  diagnostics?: {
-    quality?: {
-      score?: number;
-      passed?: boolean;
-      recommendation?: string;
-      warnings?: string[];
+  day?: {
+    id: string;
+    title: string;
+    order?: number;
+    dayNumber?: number;
+    week?: {
+      id: string;
+      title: string;
+      order?: number;
+      weekNumber?: number;
+      module?: {
+        id: string;
+        title: string;
+        career?: { id: string; title?: string; name?: string; slug: string };
+      };
     };
-    prerequisiteGraphValid?: boolean;
-    warnings?: string[];
-    regenerated?: boolean;
-    detectedDomain?: string;
-    confidence?: number;
-    matchedAliases?: string[];
   };
 };
 
 export const careerRoadmapService = {
-  generateRoadmap(careerName: string) {
-    return api.post<GeneratedRoadmapResponse>('/admin/generate-roadmap', { careerName }).then((res) => {
-      const wrapper = res as unknown as GeneratedRoadmapResponse;
-      return {
-        roadmap: wrapper.roadmap ?? (res as unknown as GeneratedRoadmap),
-        source: wrapper.source ?? 'fallback',
-        model: wrapper.model,
-        diagnostics: wrapper.diagnostics,
-      } as GeneratedRoadmapResponse;
-    });
-  },
-
-  approveRoadmap(input: GeneratedRoadmap) {
-    return api.post<unknown>('/admin/approve-roadmap', input);
-  },
-
-  updateRoadmapModule(id: string, input: Partial<{ title: string; description: string; sortOrder: number }>) {
-    return api.put(`/admin/module/${encodeURIComponent(id)}`, input);
-  },
-
-  updateRoadmapWeek(id: string, input: Partial<{ title: string; description: string; sortOrder: number }>) {
-    return api.put(`/admin/week/${encodeURIComponent(id)}`, input);
-  },
-
-  updateRoadmapDay(id: string, input: Partial<{ title: string; description: string; sortOrder: number }>) {
-    return api.put(`/admin/day/${encodeURIComponent(id)}`, input);
-  },
-
-  updateRoadmapTopic(id: string, input: Partial<{
-    title: string;
-    description: string;
-    difficulty: string;
-    estimatedDuration: string;
-    learningObjective: string;
-    prerequisite: string;
-    practicalTask: string;
-    sortOrder: number;
-  }>) {
-    return api.put(`/admin/topic/${encodeURIComponent(id)}`, input);
-  },
-
   listCareers() {
     return api.get<CareerRoadmapSummary[]>('/careers');
+  },
+
+  listAdminCareers() {
+    return api.get<CareerRoadmap[]>('/admin/careers');
   },
 
   getCareer(slug: string) {
     return api.get<CareerRoadmap>(`/careers/${encodeURIComponent(slug)}`);
   },
 
+  getCareerWithProgress(slug: string) {
+    return api.get<CareerRoadmap>(`/progress/dashboard/roadmap/${encodeURIComponent(slug)}`);
+  },
+
+  generateCareerRoadmap(input: { careerGoal: string; skillLevel?: string }) {
+    return api.post<CareerRoadmap>('/careers/generate', input);
+  },
+
   getTopic(id: string) {
     return api.get<CareerTopic & { day?: CareerDayContext }>(`/topics/${encodeURIComponent(id)}`);
   },
 
-  createCareer(input: { name: string; slug?: string; description: string; totalWeeks: number }) {
+  completeResource(resourceId: string) {
+    return api.post('/progress/resource/complete', { resourceId });
+  },
+
+  getTopicProgress(topicId: string) {
+    return api.get(`/progress/topic/${encodeURIComponent(topicId)}`);
+  },
+
+  getDayProgress(dayId: string) {
+    return api.get(`/progress/day/${encodeURIComponent(dayId)}`);
+  },
+
+  getWeekProgress(weekId: string) {
+    return api.get(`/progress/week/${encodeURIComponent(weekId)}`);
+  },
+
+  getCareerProgress(careerId: string) {
+    return api.get(`/progress/career/${encodeURIComponent(careerId)}`);
+  },
+
+  getProgressSummary() {
+    return api.get('/progress/summary');
+  },
+
+  getDashboard() {
+    return api.get('/progress/dashboard');
+  },
+
+  createCareer(input: { name: string; title?: string; slug?: string; description: string; thumbnail?: string; status?: 'draft' | 'published'; totalWeeks?: number }) {
     return api.post<CareerRoadmapSummary>('/admin/career', input);
   },
 
-  createWeek(input: { careerId: string; weekNumber: number; title: string; description?: string }) {
+  updateCareer(id: string, input: Partial<{ name: string; title: string; slug: string; description: string; thumbnail: string; status: 'draft' | 'published' }>) {
+    return api.put<CareerRoadmapSummary>(`/admin/career/${encodeURIComponent(id)}`, input);
+  },
+
+  deleteCareer(id: string) {
+    return api.delete<{ id: string }>(`/admin/career/${encodeURIComponent(id)}`);
+  },
+
+  publishCareer(id: string, published: boolean) {
+    return api.patch<CareerRoadmapSummary>(`/admin/career/${encodeURIComponent(id)}/publish`, { published });
+  },
+
+  createModule(input: { careerId: string; title: string; description?: string; order?: number }) {
+    return api.post<CareerModule>('/admin/module', input);
+  },
+
+  updateModule(id: string, input: Partial<{ title: string; description: string; order: number }>) {
+    return api.put<CareerModule>(`/admin/module/${encodeURIComponent(id)}`, input);
+  },
+
+  deleteModule(id: string) {
+    return api.delete<{ id: string }>(`/admin/module/${encodeURIComponent(id)}`);
+  },
+
+  createWeek(input: { moduleId: string; weekNumber: number; title: string; description?: string }) {
     return api.post<CareerWeek>('/admin/week', input);
   },
 
-  createDay(input: { weekId: string; dayNumber: number; title: string; description?: string }) {
-    return api.post<CareerDayContext>('/admin/day', input);
+  updateWeek(id: string, input: Partial<{ weekNumber: number; title: string; description: string }>) {
+    return api.put<CareerWeek>(`/admin/week/${encodeURIComponent(id)}`, input);
+  },
+
+  deleteWeek(id: string) {
+    return api.delete<{ id: string }>(`/admin/week/${encodeURIComponent(id)}`);
+  },
+
+  createDay(input: { weekId: string; dayNumber: number; title: string; description?: string; estimatedHours?: number }) {
+    return api.post<CareerDay>('/admin/day', input);
+  },
+
+  updateDay(id: string, input: Partial<{ dayNumber: number; title: string; description: string; estimatedHours: number }>) {
+    return api.put<CareerDay>(`/admin/day/${encodeURIComponent(id)}`, input);
+  },
+
+  deleteDay(id: string) {
+    return api.delete<{ id: string }>(`/admin/day/${encodeURIComponent(id)}`);
   },
 
   createTopic(input: {
     dayId: string;
     title: string;
     description?: string;
-    difficulty: string;
-    estimatedTime: string;
+    objective?: string;
+    difficulty?: string;
+    estimatedTime?: string;
     order: number;
-    quizUrl?: string;
-    miniProjectUrl?: string;
-    progress?: unknown;
   }) {
     return api.post<CareerTopic>('/admin/topic', input);
+  },
+
+  updateTopic(id: string, input: Partial<{ title: string; description: string; objective: string; order: number }>) {
+    return api.put<CareerTopic>(`/admin/topic/${encodeURIComponent(id)}`, input);
+  },
+
+  deleteTopic(id: string) {
+    return api.delete<{ id: string }>(`/admin/topic/${encodeURIComponent(id)}`);
   },
 
   addResource(input: {
@@ -119,20 +162,13 @@ export const careerRoadmapService = {
     title: string;
     provider: string;
     url: string;
-    description?: string;
-    thumbnail?: string;
-    estimatedDuration?: string;
-    duration?: string;
     isFree?: boolean;
     free?: boolean;
-    rating?: number;
     verified?: boolean;
     language?: string;
     difficulty?: string;
-    tags?: string[];
     order?: number;
-    verified?: boolean;
-    metadata?: Record<string, unknown>;
+    displayOrder?: number;
   }) {
     return api.post<CareerResource>('/admin/resource', input);
   },
@@ -144,19 +180,13 @@ export const careerRoadmapService = {
     title: string;
     provider: string;
     url: string;
-    description: string;
-    thumbnail: string;
-    estimatedDuration: string;
-    duration: string;
     isFree: boolean;
     free: boolean;
-    rating: number;
     verified: boolean;
     language: string;
     difficulty: string;
-    tags: string[];
     order: number;
-    metadata: Record<string, unknown>;
+    displayOrder: number;
   }>) {
     return api.put<CareerResource>(`/admin/resource/${encodeURIComponent(id)}`, input);
   },
@@ -183,74 +213,36 @@ export const careerRoadmapService = {
   reorderResources(topicId: string, orderedResourceIds: string[]) {
     return api.put<CareerResource[]>('/admin/resource/reorder', { topicId, orderedResourceIds });
   },
+
+  reorderModules(orderedIds: string[]) {
+    return api.put('/admin/modules/reorder', { orderedIds });
+  },
+
+  reorderWeeks(orderedIds: string[]) {
+    return api.put('/admin/weeks/reorder', { orderedIds });
+  },
+
+  reorderDays(orderedIds: string[]) {
+    return api.put('/admin/days/reorder', { orderedIds });
+  },
+
+  reorderTopics(orderedIds: string[]) {
+    return api.put('/admin/topics/reorder', { orderedIds });
+  },
 };
 
 type CareerDayContext = {
   id: string;
   title: string;
-  dayNumber: number;
+  order?: number;
   week?: {
     id: string;
     title: string;
-    weekNumber: number;
-    career?: { id: string; name: string; slug: string };
-  };
-};
-
-export type GeneratedRoadmap = {
-  careerName: string;
-  summary: string;
-  templateKey?: string;
-  version?: number;
-  generatedBy?: string;
-  generatedAt?: string;
-  approved?: boolean;
-  status?: 'draft' | 'approved';
-  modules: Array<{
-    id?: string;
-    slug?: string;
-    moduleNumber: number;
-    title: string;
-    description: string;
-    moduleAssessment?: string;
-    realWorldProject?: string;
-    interviewQuestions?: string[];
-    commonMistakes?: string[];
-    industryTips?: string[];
-    weeks: Array<{
-      id?: string;
-      slug?: string;
-      weekNumber: number;
+    order?: number;
+    module?: {
+      id: string;
       title: string;
-      description: string;
-      weeklyRevision?: string;
-      weeklyQuiz?: string;
-      handsOnAssignment?: string;
-      miniProject?: string;
-      days: Array<{
-        id?: string;
-        slug?: string;
-        dayNumber: number;
-        title: string;
-        description: string;
-        topics: Array<{
-          id?: string;
-          slug?: string;
-          title: string;
-          description: string;
-          explanation?: string;
-          difficulty: string;
-          estimatedDuration: string;
-          learningObjective: string;
-          prerequisite: string;
-          handsOnExercise?: string;
-          handsOnTask?: string;
-          miniExercise?: string;
-          expectedOutcome?: string;
-          practicalTask: string;
-          resources?: unknown[];
-        }>;
-      }>;
-    }>;
-  }>;
+      career?: { id: string; title?: string; name?: string; slug: string };
+    };
+  };
 };
