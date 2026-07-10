@@ -1,17 +1,23 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CircularProgress } from "@/components/ui/circular-progress";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { 
-  Code, Brain, BarChart, 
-  CalendarClock, ChevronRight, Sparkles,
-  ArrowRight
+  Flame, Zap, BookOpen, ArrowRight, 
+  ChevronRight, Target, AlertCircle
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
-import { dashboardService } from "@/services/dashboardService";
-import { aiService } from "@/services/aiService";
+import { careerRoadmapService } from "@/services/careerRoadmapService";
+import { findNextIncompleteResource } from "@/services/nextResourceService";
+import { 
+  DashboardHeaderSkeleton, 
+  ContinueLearningSkeleton,
+  StatWidgetSkeleton,
+  QuickActionsSkeleton
+} from "@/components/skeletons/DashboardSkeleton";
+import { NoCareerSelected, NoProgressYet } from "@/components/empty-states/EmptyStates";
+import { GamificationStatsGrid } from "@/components/gamification/GamificationCards";
 
 function getFirstName(fullName?: string | null) {
   const source = fullName?.trim() || "there";
@@ -20,184 +26,238 @@ function getFirstName(fullName?: string | null) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
+  
+  // Fetch unified dashboard data
+  const { data: dashboard, isLoading } = useQuery({
     queryKey: ["dashboard"],
-    queryFn: dashboardService.getDashboard,
+    queryFn: careerRoadmapService.getDashboard,
     retry: false,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
 
-  const { data: recommendations = [], isLoading: recommendationsLoading } = useQuery({
-    queryKey: ["ai", "recommend-careers"],
-    queryFn: aiService.getCareerRecommendations,
+  // Also fetch the roadmap with progress to find next resource
+  const { data: roadmapData } = useQuery({
+    queryKey: ['career-roadmap-progress', dashboard?.currentCareer?.id],
+    queryFn: () => {
+      if (!dashboard?.currentCareer?.id) return null;
+      return careerRoadmapService.getCareerWithProgress(dashboard.currentCareer.id);
+    },
+    enabled: Boolean(dashboard?.currentCareer?.id),
     retry: false,
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 2,
   });
 
   const firstName = useMemo(() => getFirstName(user?.fullName), [user?.fullName]);
-  const topRecommendation = recommendations[0];
 
-  // Calculate stats from dashboard data
-  const stats = useMemo(() => ({
-    clarityScore: Math.round(((recommendations.length / 10) * 100)) || 0,
-    roadmapProgress: dashboardData?.progress?.[0]?.progressPercentage || 0,
-    skillsInProgress: user?.skills?.length || 0,
-    recommendedCareers: recommendations.length || 0,
-    totalXp: dashboardData?.user?.xp || 0,
-    streak: dashboardData?.user?.streak || 0,
-    completedRoadmaps: dashboardData?.completedRoadmaps?.length || 0,
-  }), [dashboardData, recommendations, user?.skills]);
+  // Find next incomplete resource for smart continue link
+  const nextResource = useMemo(() => {
+    return findNextIncompleteResource(roadmapData);
+  }, [roadmapData]);
 
-  const currentRoadmap = dashboardData?.progress?.[0];
+  // Build continue learning href with auto-expand params
+  const continueHref = useMemo(() => {
+    if (!nextResource) return '/roadmap';
+    const params = new URLSearchParams({
+      moduleId: nextResource.moduleId,
+      weekId: nextResource.weekId,
+      dayId: nextResource.dayId,
+      topicId: nextResource.topicId,
+      resourceId: nextResource.resourceId,
+    });
+    return `/roadmap?${params.toString()}`;
+  }, [nextResource]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+          <DashboardHeaderSkeleton />
+          
+          <div className="grid grid-cols-3 gap-6">
+            <div className="col-span-2 space-y-6">
+              <ContinueLearningSkeleton />
+            </div>
+            <div className="space-y-4">
+              <StatWidgetSkeleton />
+              <StatWidgetSkeleton />
+              <StatWidgetSkeleton />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const hasCareer = !!dashboard?.currentCareer;
+  
+  if (!hasCareer && !isLoading) {
+    return <NoCareerSelected />;
+  }
+
+  const progress = dashboard?.overallProgress || 0;
+  const weekProgress = dashboard?.weeklyProgress || 0;
+  const todayCompleted = dashboard?.completedToday || 0;
+  const todayGoal = dashboard?.todayGoal || 2;
+  const xp = dashboard?.xp || 0;
+  const streak = dashboard?.streak || 0;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Welcome back {firstName}! Let's continue your journey..</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900">
+              👋 Welcome back, {firstName}
+            </h1>
+            <p className="text-slate-600 mt-2">Let's continue your learning journey</p>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-4 gap-6">
-        <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center text-center">
-          <CircularProgress value={stats.clarityScore} size={70} strokeWidth={6} />
-          <h3 className="font-semibold mt-4 text-sm text-foreground">Career Clarity Score</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            {stats.clarityScore < 50 ? "Keep exploring" : stats.clarityScore < 75 ? "Getting there" : "Strong match"}
-          </p>
-        </div>
-        <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center text-center">
-          <CircularProgress 
-            value={Math.round(stats.roadmapProgress)} 
-            size={70} 
-            strokeWidth={6} 
-            color="hsl(var(--primary))"
-            valueFormatter={(val) => `${val}%`}
-          />
-          <h3 className="font-semibold mt-4 text-sm text-foreground">Roadmap Progress</h3>
-          <p className="text-xs text-muted-foreground mt-1">Currently Active</p>
-        </div>
-        <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center text-center">
-          <CircularProgress 
-            value={stats.skillsInProgress} 
-            max={10} 
-            size={70} 
-            strokeWidth={6} 
-            color="hsl(var(--primary))"
-            valueFormatter={(val) => `${val}`}
-          />
-          <h3 className="font-semibold mt-4 text-sm text-foreground">Skills In Progress</h3>
-          <p className="text-xs text-muted-foreground mt-1">Keep Learning</p>
-        </div>
-        <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm flex flex-col items-center text-center">
-          <CircularProgress 
-            value={stats.recommendedCareers} 
-            max={10} 
-            size={70} 
-            strokeWidth={6} 
-            color="hsl(var(--primary))"
-            valueFormatter={(val) => `${val}`}
-          />
-          <h3 className="font-semibold mt-4 text-sm text-foreground">Recommended Careers</h3>
-          <p className="text-xs text-muted-foreground mt-1">Matches Found</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-8">
-        <div className="col-span-2 space-y-8">
-          <section>
-            <h2 className="text-xl font-bold text-foreground mb-4">Continue Learning</h2>
-            {currentRoadmap ? (
-              <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-                      <BarChart className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">
-                        {dashboardData?.progress?.[0]?.roadmapTitle || "Current Learning Path"}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">In Progress</p>
+        {/* Main Content - Two Column */}
+        <div className="grid grid-cols-3 gap-6">
+          
+          {/* Left Column - Continue Learning */}
+          <div className="col-span-2 space-y-6">
+            
+            {/* Continue Learning Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-6">Continue Learning</h2>
+              
+              {hasCareer ? (
+                <div className="space-y-6">
+                  {/* Career Path */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-sm text-slate-600 font-medium">Current Path</p>
+                        <h3 className="text-2xl font-bold text-slate-900 mt-1">
+                          {dashboard.currentCareer.title}
+                        </h3>
+                      </div>
+                      <Link href={continueHref}>
+                        <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
+                          Resume <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </Link>
                     </div>
                   </div>
-                  <Link href="/roadmap">
-                    <Button className="rounded-full px-6">Continue</Button>
+
+                  {/* Current Position */}
+                  {dashboard.currentWeek && (
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                      <p className="text-xs text-slate-600 font-medium uppercase tracking-wide mb-3">Where You Are</p>
+                      <div className="flex items-center gap-6">
+                        {dashboard.currentWeek && (
+                          <div>
+                            <p className="text-sm text-slate-600">Week {dashboard.currentWeek.number}</p>
+                            <p className="font-semibold text-slate-900">{dashboard.currentWeek.title}</p>
+                          </div>
+                        )}
+                        <div className="w-0.5 h-8 bg-slate-300"></div>
+                        {dashboard.currentDay && (
+                          <div>
+                            <p className="text-sm text-slate-600">Day {dashboard.currentDay.dayNumber}</p>
+                            <p className="font-semibold text-slate-900">{dashboard.currentDay.title}</p>
+                          </div>
+                        )}
+                        {dashboard.currentTopic && (
+                          <>
+                            <div className="w-0.5 h-8 bg-slate-300"></div>
+                            <div>
+                              <p className="text-sm text-slate-600">Topic</p>
+                              <p className="font-semibold text-slate-900">{dashboard.currentTopic.title}</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Progress Bars */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-slate-700">Overall Progress</p>
+                        <p className="text-sm font-bold text-slate-900">{Math.round(progress)}%</p>
+                      </div>
+                      <Progress value={progress} className="h-3 bg-slate-200" />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-slate-700">This Week</p>
+                        <p className="text-sm font-bold text-slate-900">{Math.round(weekProgress)}%</p>
+                      </div>
+                      <Progress value={weekProgress} className="h-3 bg-slate-200" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-600 mb-4">No learning path started yet</p>
+                  <Link href="/careers">
+                    <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
+                      Explore Careers <ArrowRight className="w-4 h-4" />
+                    </Button>
                   </Link>
                 </div>
-                <div className="mt-6 flex items-center gap-4">
-                  <Progress value={Math.round(currentRoadmap.progressPercentage)} className="h-2 flex-1" />
-                  <span className="text-sm font-medium">{Math.round(currentRoadmap.progressPercentage)}%</span>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm text-center text-muted-foreground">
-                <p>Start your first roadmap to begin learning!</p>
-                <Link href="/roadmap" className="mt-3">
-                  <Button className="rounded-full px-6">Explore Roadmaps</Button>
-                </Link>
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h2 className="text-xl font-bold text-foreground mb-4">Recommended for you</h2>
-            <div className="grid grid-cols-3 gap-4">
-              {recommendations.slice(0, 3).map((rec, idx) => (
-                <div key={idx} className="bg-card border border-border rounded-[20px] p-5 shadow-sm hover:shadow-md transition-shadow">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-4 ${
-                    idx === 0 ? "bg-purple-50 text-purple-500" : 
-                    idx === 1 ? "bg-orange-50 text-orange-500" : 
-                    "bg-blue-50 text-blue-500"
-                  }`}>
-                    {idx === 0 ? <Code className="w-5 h-5" /> : 
-                     idx === 1 ? <Brain className="w-5 h-5" /> : 
-                     <BarChart className="w-5 h-5" />}
-                  </div>
-                  <h3 className="font-semibold text-sm mb-1 leading-snug">{rec.career}</h3>
-                  <p className="text-xs text-muted-foreground mb-3">Career Match</p>
-                  <div className="flex items-center text-amber-500 text-xs font-medium">
-                    ★ {(rec.score / 20).toFixed(1)}
-                  </div>
-                </div>
-              ))}
+              )}
             </div>
-          </section>
-        </div>
 
-        <div className="col-span-1 space-y-6">
-          <div className="bg-card border border-border rounded-[20px] p-6 shadow-sm">
-            <h3 className="font-bold text-foreground mb-4">Your Stats</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total XP</span>
-                <span className="font-semibold text-foreground">{stats.totalXp} XP</span>
+            {/* Today's Goal Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+              <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Target className="w-5 h-5 text-amber-500" />
+                Today's Goal
+              </h2>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-amber-50 rounded-xl p-6 border border-amber-200">
+                  <p className="text-xs text-amber-700 font-medium uppercase tracking-wide mb-2">Target</p>
+                  <p className="text-3xl font-bold text-amber-900">{todayGoal}</p>
+                  <p className="text-sm text-amber-700 mt-1">Resources</p>
+                </div>
+
+                <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-200">
+                  <p className="text-xs text-emerald-700 font-medium uppercase tracking-wide mb-2">Completed</p>
+                  <p className="text-3xl font-bold text-emerald-900">{todayCompleted}</p>
+                  <p className="text-sm text-emerald-700 mt-1">Resources</p>
+                </div>
+
+                <div className="bg-slate-100 rounded-xl p-6 border border-slate-300">
+                  <p className="text-xs text-slate-700 font-medium uppercase tracking-wide mb-2">Remaining</p>
+                  <p className="text-3xl font-bold text-slate-900">{Math.max(0, todayGoal - todayCompleted)}</p>
+                  <p className="text-sm text-slate-700 mt-1">Resources</p>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Current Streak</span>
-                <span className="font-semibold text-foreground">{stats.streak} days</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Roadmaps Completed</span>
-                <span className="font-semibold text-foreground">{stats.completedRoadmaps}</span>
+
+              <div className="mt-6">
+                <div className="relative bg-slate-100 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (todayCompleted / todayGoal) * 100)}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-slate-600 mt-2 text-center">
+                  {todayCompleted >= todayGoal ? "🎉 Great job! You've completed today's goal!" : `${Math.max(0, todayGoal - todayCompleted)} more to go!`}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-primary text-primary-foreground rounded-[20px] p-6 shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-y-10 translate-x-10"></div>
-            <Sparkles className="w-8 h-8 text-white/80 mb-4" />
-            <h3 className="font-bold text-lg mb-2">AI Suggestion</h3>
-            <p className="text-sm text-primary-foreground/90 mb-6 leading-relaxed">
-              {topRecommendation 
-                ? `${topRecommendation.career} has a strong ${topRecommendation.score}% match with your profile. ${topRecommendation.reason || "Focus on the recommended roadmap to get started!"}`
-                : "Complete your assessment to get personalized recommendations!"}
-            </p>
-            <Link href={topRecommendation ? "/roadmap" : "/assessments"} className="inline-flex items-center gap-2 text-sm font-medium text-white hover:text-white/80 transition-colors">
-              {topRecommendation ? "View Roadmap" : "Start Assessment"}
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          {/* Right Column - Gamification Stats */}
+          <div className="col-span-1">
+            <GamificationStatsGrid 
+              streak={streak}
+              xp={xp}
+              level={Math.floor(xp / 500) + 1}
+              badges={[]}
+              isLoading={isLoading}
+            />
           </div>
         </div>
       </div>

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">9.09% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/77</span>
+                <span class='fraction'>7/77</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">10% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/70</span>
+                <span class='fraction'>7/70</span>
             </div>
         
             
@@ -203,19 +203,19 @@
 <a name='L138'></a><a href='#L138'>138</a>
 <a name='L139'></a><a href='#L139'>139</a>
 <a name='L140'></a><a href='#L140'>140</a>
-<a name='L141'></a><a href='#L141'>141</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L141'></a><a href='#L141'>141</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -342,20 +342,20 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { CareerAdjustmentArraySchema } from './schemas';</span>
-<span class="cstat-no" title="statement not covered" >import safeParseAIResponse from './safeParser';</span>
-<span class="cstat-no" title="statement not covered" >import { generateContent } from '../ai/GeminiProvider';</span>
-<span class="cstat-no" title="statement not covered" >import crypto from 'crypto';</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { CareerAdjustmentArraySchema } from './schemas';
+import safeParseAIResponse from './safeParser';
+import { routeAI } from './aiRouter';
+import crypto from 'crypto';
 &nbsp;
-const ADJUSTMENTS_TTL = <span class="cstat-no" title="statement not covered" >60 * 60 * 6;</span> // 6 hours
+const ADJUSTMENTS_TTL = 60 * 60 * 6; // 6 hours
 &nbsp;
 /**
  * Combine local rule-based scores with a lightweight GPT enhancement layer.
  * Local engine provides the authoritative numeric scores; GPT provides explanations
  * and optional minor adjustments (confidence modifiers). We keep GPT's influence small.
  */
-<span class="cstat-no" title="statement not covered" >export a</span>sync function <span class="fstat-no" title="function not covered" >enhanceAndCombineScores(</span>assessmentProfile: any, localMatches: any[]) {
+export async function <span class="fstat-no" title="function not covered" >enhanceAndCombineScores(</span>assessmentProfile: any, localMatches: any[]) {
   // Local scores (0..1) from careerMatchingEngine
   const local = <span class="cstat-no" title="statement not covered" >localMatches.map(<span class="fstat-no" title="function not covered" >(m</span>: any) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
     careerId: m.careerId,
@@ -436,8 +436,8 @@ Careers: ${JSON.stringify(local.map(<span class="fstat-no" title="function not c
       // cache step failed — continue to call AI
     }
 &nbsp;
-    const result = <span class="cstat-no" title="statement not covered" >await generateContent(prompt);</span>
-    const parsed = <span class="cstat-no" title="statement not covered" >safeParseAIResponse(JSON.parse(result), CareerAdjustmentArraySchema);</span>
+    const result = <span class="cstat-no" title="statement not covered" >await routeAI('career_match', { prompt, input: assessmentProfile, format: 'json' });</span>
+    const parsed = <span class="cstat-no" title="statement not covered" >safeParseAIResponse(JSON.parse(result.value), CareerAdjustmentArraySchema);</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    try {</span>
       const hash = <span class="cstat-no" title="statement not covered" >crypto.createHash('sha256').update(prompt).digest('hex');</span>
@@ -482,7 +482,7 @@ Careers: ${JSON.stringify(local.map(<span class="fstat-no" title="function not c
     .sort(<span class="fstat-no" title="function not covered" >(a</span>: any, b: any) =&gt; <span class="cstat-no" title="statement not covered" >b.match - a.match)</span>;
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export default { enhanceAndCombineScores };</span>
+export default { enhanceAndCombineScores };
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -490,7 +490,7 @@ Careers: ${JSON.stringify(local.map(<span class="fstat-no" title="function not c
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T18:00:23.995Z
+                at 2026-07-10T14:17:58.688Z
             </div>
         <script src="../prettify.js"></script>
         <script>

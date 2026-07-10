@@ -1,348 +1,307 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'wouter';
-import { useAuth } from '@/hooks/useAuth';
-import { careerRoadmapService, type CareerTopicSearchResult } from '@/services/careerRoadmapService';
-import type { CareerResource } from '@/types/api';
+import { careerRoadmapService } from '@/services/careerRoadmapService';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Trash2, Pencil, ShieldCheck, Loader2, ArrowUpDown, CheckCircle2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Eye, EyeOff, Trash2, Loader2, BookOpen } from 'lucide-react';
 
-const resourceTypes = ['DOCUMENTATION', 'VIDEO', 'PRACTICE', 'PROJECT', 'BOOK', 'NOTES', 'INTERVIEW_QUESTION', 'CERTIFICATION', 'REFERENCE'] as const;
-
-type ResourceFormState = {
-  topicId: string;
-  type: CareerResource['type'];
-  title: string;
-  provider: string;
-  url: string;
-  thumbnail: string;
-  duration: string;
-  free: boolean;
-  language: string;
-  difficulty: string;
-  order: string;
-  verified: boolean;
-};
-
-const defaultResourceForm = (topicId = ''): ResourceFormState => ({
-  topicId,
-  type: 'DOCUMENTATION',
-  title: '',
-  provider: '',
-  url: '',
-  thumbnail: '',
-  duration: '',
-  free: true,
-  language: 'en',
-  difficulty: '',
-  order: '0',
-  verified: false,
-});
-
-export default function AdminRoadmapManager() {
-  const { user } = useAuth();
+export default function AdminRoadmaps() {
   const queryClient = useQueryClient();
-  const [selectedTopicId, setSelectedTopicId] = useState('');
-  const [topicSearch, setTopicSearch] = useState('');
-  const [editingResourceId, setEditingResourceId] = useState<string | null>(null);
-  const [resourceForm, setResourceForm] = useState<ResourceFormState>(defaultResourceForm());
+  const [selectedCareerId, setSelectedCareerId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: '', description: '' });
 
-  const topicSearchQuery = useQuery({
-    queryKey: ['admin-topic-search', topicSearch],
-    queryFn: () => careerRoadmapService.searchTopics({ q: topicSearch, page: 1, limit: 12 }),
-    enabled: Boolean(topicSearch.trim()),
-    retry: false,
+  // Fetch all careers
+  const { data: careers = [], isLoading: careersLoading } = useQuery({
+    queryKey: ['admin-careers'],
+    queryFn: () => careerRoadmapService.listAdminCareers(),
   });
 
-  const resourceListQuery = useQuery({
-    queryKey: ['admin-topic-resources', selectedTopicId],
-    queryFn: () => careerRoadmapService.listResources(selectedTopicId),
-    enabled: Boolean(selectedTopicId),
-    retry: false,
+  // Fetch selected career details
+  const { data: selectedCareer, isLoading: careerLoading } = useQuery({
+    queryKey: ['career-detail', selectedCareerId],
+    queryFn: () => {
+      if (!selectedCareerId) return null;
+      return careerRoadmapService.listAdminCareers().then(careers =>
+        careers.find(c => c.id === selectedCareerId) || null
+      );
+    },
+    enabled: !!selectedCareerId,
   });
 
-  useEffect(() => {
-    if (selectedTopicId) {
-      setResourceForm((current) => ({ ...current, topicId: selectedTopicId }));
-    }
-  }, [selectedTopicId]);
-
-  const addResourceMutation = useMutation({
-    mutationFn: careerRoadmapService.addResource,
-    onSuccess: async () => {
-      setResourceForm(defaultResourceForm(selectedTopicId));
-      setEditingResourceId(null);
-      await queryClient.invalidateQueries({ queryKey: ['admin-topic-resources', selectedTopicId] });
+  // Create career mutation
+  const createCareerMutation = useMutation({
+    mutationFn: (data: any) => careerRoadmapService.createCareer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-careers'] });
+      setIsCreateModalOpen(false);
+      setFormData({ name: '', description: '' });
     },
   });
 
-  const updateResourceMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<Omit<ResourceFormState, 'order'>> & { order?: number; metadata?: Record<string, unknown> } }) =>
-      careerRoadmapService.updateResource(id, {
-        topicId: input.topicId,
-        type: input.type,
-        title: input.title,
-        provider: input.provider,
-        url: input.url,
-        thumbnail: input.thumbnail,
-        duration: input.duration,
-        free: input.free,
-        language: input.language,
-        difficulty: input.difficulty,
-        order: input.order,
-        verified: input.verified,
-        metadata: input.metadata,
-      }),
-    onSuccess: async () => {
-      setEditingResourceId(null);
-      setResourceForm(defaultResourceForm(selectedTopicId));
-      await queryClient.invalidateQueries({ queryKey: ['admin-topic-resources', selectedTopicId] });
+  // Publish/Unpublish mutation
+  const publishMutation = useMutation({
+    mutationFn: (id: string) =>
+      careerRoadmapService.publishCareer(id, selectedCareer?.status !== 'published'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-careers'] });
+      queryClient.invalidateQueries({ queryKey: ['career-detail', selectedCareerId] });
     },
   });
 
-  const deleteResourceMutation = useMutation({
-    mutationFn: careerRoadmapService.deleteResource,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['admin-topic-resources', selectedTopicId] });
+  // Delete career mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => careerRoadmapService.deleteCareer(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-careers'] });
+      setSelectedCareerId('');
     },
   });
 
-  if (!user || user.role !== 'ADMIN') {
-    return (
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle>Admin access required</CardTitle>
-          <CardDescription>This manager is only available for admin accounts.</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  const editableResources = resourceListQuery.data ?? [];
-  const topicSearchResults: CareerTopicSearchResult[] = topicSearchQuery.data?.data ?? [];
-
-  const submitResource = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedTopicId) return;
-
-    const payload = {
-      topicId: resourceForm.topicId || selectedTopicId,
-      type: resourceForm.type,
-      title: resourceForm.title,
-      provider: resourceForm.provider,
-      url: resourceForm.url,
-      thumbnail: resourceForm.thumbnail || undefined,
-      duration: resourceForm.duration || undefined,
-      free: resourceForm.free,
-      language: resourceForm.language || undefined,
-      difficulty: resourceForm.difficulty || undefined,
-      order: Number(resourceForm.order || 0),
-      verified: resourceForm.verified,
-    };
-
-    if (editingResourceId) {
-      updateResourceMutation.mutate({ id: editingResourceId, input: payload });
+  const handleCreateCareer = () => {
+    if (!formData.name.trim() || !formData.description.trim()) {
+      alert('Please fill in all fields');
       return;
     }
-
-    addResourceMutation.mutate(payload);
+    createCareerMutation.mutate(formData);
   };
 
+  const filteredCareers = careers.filter(c =>
+    c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-16">
-      <Card className="overflow-hidden border-border/70 shadow-sm">
-        <div className="bg-gradient-to-r from-slate-950 to-slate-800 px-6 py-5 text-white">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/70">
-            <ShieldCheck className="h-4 w-4" />
-            Admin Resource Manager
-          </div>
-          <h1 className="mt-2 text-3xl font-bold">Topic resources only</h1>
-          <p className="mt-2 max-w-3xl text-sm text-white/70">Use the roadmap review page to generate and approve curriculum. Keep this page focused on resource curation.</p>
-          <div className="mt-4">
-            <Button asChild variant="secondary" className="rounded-xl">
-              <Link href="/admin/roadmap-review">Open roadmap review</Link>
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Career Roadmaps</h1>
+          <p className="text-slate-600">Manage learning paths for students</p>
         </div>
-      </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle>Search topics</CardTitle>
-            <CardDescription>Find a topic, then manage its resources.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search topics" className="pl-9" value={topicSearch} onChange={(event) => setTopicSearch(event.target.value)} />
-            </div>
-            <div className="space-y-3">
-              {topicSearchQuery.isFetching ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Searching topics...</div>
-              ) : topicSearchResults.length ? (
-                topicSearchResults.map((topic) => (
-                  <button
-                    key={topic.id}
-                    type="button"
-                    className={`w-full rounded-2xl border p-4 text-left transition-all hover:border-primary/40 ${selectedTopicId === topic.id ? 'border-primary bg-primary/5' : 'border-border/70 bg-background'}`}
-                    onClick={() => {
-                      setSelectedTopicId(topic.id);
-                      setResourceForm(defaultResourceForm(topic.id));
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{topic.title}</p>
-                        <p className="text-xs text-muted-foreground">{topic.day?.week?.career?.name} · Week {topic.day?.week?.weekNumber} · Day {topic.day?.dayNumber}</p>
-                      </div>
-                      <Badge variant="outline" className="rounded-full border-border/60 px-3 py-1.5">{topic.resources?.length ?? 0} resources</Badge>
-                    </div>
-                  </button>
-                ))
-              ) : topicSearch.trim() ? (
-                <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">No topics found for this search.</div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">Search topics to attach or edit resources.</div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Left Sidebar - Career List */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Careers</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
 
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle>Resource manager</CardTitle>
-            <CardDescription>Attach documentation, video, practice, project, book, notes, interview question, certification, or reference links to the selected topic.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {selectedTopicId ? (
-              <form className="space-y-3" onSubmit={submitResource}>
-                <Select value={resourceForm.type} onValueChange={(value) => setResourceForm((current) => ({ ...current, type: value as CareerResource['type'] }))}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Resource type" /></SelectTrigger>
-                  <SelectContent>
-                    {resourceTypes.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input placeholder="Resource title" value={resourceForm.title} onChange={(event) => setResourceForm((current) => ({ ...current, title: event.target.value }))} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input placeholder="Provider" value={resourceForm.provider} onChange={(event) => setResourceForm((current) => ({ ...current, provider: event.target.value }))} />
-                  <Input placeholder="URL" value={resourceForm.url} onChange={(event) => setResourceForm((current) => ({ ...current, url: event.target.value }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input placeholder="Duration" value={resourceForm.duration} onChange={(event) => setResourceForm((current) => ({ ...current, duration: event.target.value }))} />
-                  <Input placeholder="Language" value={resourceForm.language} onChange={(event) => setResourceForm((current) => ({ ...current, language: event.target.value }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input placeholder="Difficulty" value={resourceForm.difficulty} onChange={(event) => setResourceForm((current) => ({ ...current, difficulty: event.target.value }))} />
-                  <Input type="number" min="0" placeholder="Order" value={resourceForm.order} onChange={(event) => setResourceForm((current) => ({ ...current, order: event.target.value }))} />
-                </div>
-                <Input placeholder="Thumbnail URL (optional)" value={resourceForm.thumbnail} onChange={(event) => setResourceForm((current) => ({ ...current, thumbnail: event.target.value }))} />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <input type="checkbox" checked={resourceForm.free} onChange={(event) => setResourceForm((current) => ({ ...current, free: event.target.checked }))} />
-                  Free resource
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <input type="checkbox" checked={resourceForm.verified} onChange={(event) => setResourceForm((current) => ({ ...current, verified: event.target.checked }))} />
-                  Verified resource
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="submit" className="rounded-xl" disabled={addResourceMutation.isPending || updateResourceMutation.isPending}>
-                    {editingResourceId ? <Pencil className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-                    {editingResourceId ? 'Update resource' : 'Add resource'}
-                  </Button>
-                  {editingResourceId ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-xl"
-                      onClick={() => {
-                        setEditingResourceId(null);
-                        setResourceForm(defaultResourceForm(selectedTopicId));
-                      }}
-                    >
-                      Cancel edit
-                    </Button>
-                  ) : null}
-                </div>
-              </form>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">Select a topic first.</div>
-            )}
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="w-full"
+                  disabled={createCareerMutation.isPending}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Career
+                </Button>
 
-            <div className="mt-6 space-y-3">
-              {resourceListQuery.isLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading resources...</div>
-              ) : editableResources.length ? (
-                editableResources.map((resource) => (
-                  <div key={resource.id} className="rounded-2xl border border-border/70 bg-background p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground">{resource.title}</p>
-                          <Badge variant="outline" className="rounded-full border-border/60 px-3 py-1.5">{resource.type}</Badge>
-                          {resource.verified ? <Badge className="rounded-full bg-emerald-100 text-emerald-700"><CheckCircle2 className="mr-1 h-3.5 w-3.5" />Verified</Badge> : null}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {careersLoading ? (
+                    <p className="text-sm text-slate-500">Loading...</p>
+                  ) : filteredCareers.length === 0 ? (
+                    <p className="text-sm text-slate-500">No careers found</p>
+                  ) : (
+                    filteredCareers.map(career => (
+                      <button
+                        key={career.id}
+                        onClick={() => setSelectedCareerId(career.id)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          selectedCareerId === career.id
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="truncate flex-1">{career.title || career.name}</span>
+                          <Badge variant={career.status === 'published' ? 'default' : 'secondary'} className="text-xs">
+                            {career.status === 'published' ? 'Live' : 'Draft'}
+                          </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{resource.provider} · {resource.duration || 'No duration'}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingResourceId(resource.id);
-                            setResourceForm({
-                              topicId: selectedTopicId,
-                              type: resource.type,
-                              title: resource.title,
-                              provider: resource.provider,
-                              url: resource.url,
-                              thumbnail: resource.thumbnail || '',
-                              duration: resource.duration || '',
-                              free: Boolean(resource.free),
-                              language: resource.language || 'en',
-                              difficulty: resource.difficulty || '',
-                              order: String(resource.order ?? 0),
-                              verified: Boolean(resource.verified),
-                            });
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => deleteResourceMutation.mutate(resource.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content - Career Details */}
+          <div className="lg:col-span-3">
+            {!selectedCareerId ? (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <p className="text-slate-600">Select a career to view details</p>
+                </CardContent>
+              </Card>
+            ) : careerLoading ? (
+              <Card>
+                <CardContent className="py-12 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                </CardContent>
+              </Card>
+            ) : selectedCareer ? (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>{selectedCareer.title || selectedCareer.name}</CardTitle>
+                      <p className="text-sm text-slate-600 mt-1">{selectedCareer.description}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={selectedCareer.status === 'published' ? 'default' : 'outline'}
+                        onClick={() => publishMutation.mutate(selectedCareerId)}
+                        disabled={publishMutation.isPending}
+                      >
+                        {publishMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : selectedCareer.status === 'published' ? (
+                          <Eye className="w-4 h-4 mr-2" />
+                        ) : (
+                          <EyeOff className="w-4 h-4 mr-2" />
+                        )}
+                        {selectedCareer.status === 'published' ? 'Published' : 'Publish'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          if (confirm('Delete this career?')) {
+                            deleteMutation.mutate(selectedCareerId);
+                          }
+                        }}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">No resources attached yet.</div>
-              )}
-            </div>
-            {selectedTopicId && editableResources.length > 1 ? (
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
-                <span>Reorder resources to control the display order students see.</span>
-                <Button type="button" variant="outline" className="rounded-xl">
-                  <ArrowUpDown className="mr-2 h-4 w-4" />
-                  Reorder resources
+                </CardHeader>
+
+                <CardContent className="space-y-8">
+                  {/* Modules Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Modules</h3>
+                      <Button size="sm" onClick={() => alert('Add Module feature coming soon')}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Module
+                      </Button>
+                    </div>
+
+                    {!selectedCareer.modules || selectedCareer.modules.length === 0 ? (
+                      <div className="text-center py-8 border border-dashed rounded-lg bg-slate-50">
+                        <BookOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p className="text-sm text-slate-600 mb-4">No modules yet</p>
+                        <Button size="sm" variant="outline" onClick={() => alert('Add Module feature coming soon')}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Your First Module
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {selectedCareer.modules.map(module => (
+                          <div key={module.id} className="border rounded-lg p-4 bg-slate-50">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-semibold text-slate-900">{module.title}</h4>
+                                <p className="text-sm text-slate-600">{module.description}</p>
+                              </div>
+                              <span className="text-sm text-slate-600">
+                                {module.weeks?.length || 0} week{(module.weeks?.length || 0) !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+
+                            {/* Weeks */}
+                            {module.weeks && module.weeks.length > 0 && (
+                              <div className="mt-4 ml-4 space-y-2 border-l-2 border-slate-300 pl-4">
+                                {module.weeks.map(week => (
+                                  <div key={week.id}>
+                                    <p className="text-sm font-medium text-slate-900">{week.title}</p>
+                                    <p className="text-xs text-slate-600">{week.description}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status Info */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-900">
+                      <strong>Status:</strong> {selectedCareer.status === 'published' ? 'Published - Students can see this' : 'Draft - Students cannot see this'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Create Career Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Create Career</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Frontend Developer"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Description *</label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Describe the career path"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  disabled={createCareerMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateCareer}
+                  disabled={createCareerMutation.isPending}
+                >
+                  {createCareerMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Create
                 </Button>
               </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
