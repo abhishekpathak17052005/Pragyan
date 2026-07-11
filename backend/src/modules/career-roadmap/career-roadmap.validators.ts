@@ -54,7 +54,9 @@ export const createWeekSchema = z.object({
   description: z.string().max(2000).optional(),
 });
 
-export const updateWeekSchema = createWeekSchema.omit({ moduleId: true, careerId: true }).partial();
+export const updateWeekSchema = createWeekSchema.omit({ moduleId: true, careerId: true }).partial().extend({
+  weekNumber: z.number().int().positive().optional(),
+});
 
 export const createDaySchema = z.object({
   weekId: z.string().min(1),
@@ -73,7 +75,7 @@ export const createTopicSchema = z.object({
   objective: z.string().max(2000).optional(),
   difficulty: z.string().min(1).max(50).optional(),
   estimatedTime: z.string().min(1).max(50).optional(),
-  order: z.number().int().nonnegative(),
+  order: z.number().int().nonnegative().optional(),
   quizUrl: z.string().url().optional().or(z.literal('')),
   miniProjectUrl: z.string().url().optional().or(z.literal('')),
   progress: z.unknown().optional(),
@@ -85,7 +87,7 @@ export const createResourceSchema = z.object({
   topicId: z.string().min(1),
   type: resourceTypeSchema.optional(),
   resourceType: resourceCategorySchema.optional(),
-  title: z.string().min(3).max(200),
+  title: z.string().min(3).max(200).optional(),
   provider: z.string().min(2).max(120),
   url: z.string().url(),
   description: z.string().max(2000).optional(),

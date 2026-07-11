@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { BookOpen, AlertCircle, Zap, Target, Loader2 } from 'lucide-react';
 

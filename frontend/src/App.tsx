@@ -24,7 +24,7 @@ const CareerReadiness = lazy(() => import("@/pages/career-readiness"));
 const Roadmap = lazy(() => import("@/pages/roadmap"));
 const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
-const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-simple"));
+const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-final"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 
 function RouteFallback() {

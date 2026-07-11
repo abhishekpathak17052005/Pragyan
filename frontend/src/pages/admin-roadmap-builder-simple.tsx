@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { careerRoadmapService } from '@/services/careerRoadmapService';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Eye, EyeOff, Trash2, Loader2, BookOpen, Calendar, Clock, FileText, Link as LinkIcon, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Eye, EyeOff, Trash2, Loader2, BookOpen, Calendar, Clock, FileText, Link as LinkIcon, ChevronDown, ChevronRight, Edit2 } from 'lucide-react';
 
 type ModalType = 'module' | 'week' | 'day' | 'topic' | 'resource' | null;
 
@@ -75,6 +76,63 @@ export default function AdminRoadmapBuilderSimple() {
       queryClient.invalidateQueries({ queryKey: ['admin-careers'] });
       setSelectedCareerId('');
     },
+  });
+
+  // Edit mutations
+  const updateCareerMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => careerRoadmapService.updateCareer(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const updateModuleMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => careerRoadmapService.updateModule(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const updateWeekMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => careerRoadmapService.updateWeek(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const updateDayMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => careerRoadmapService.updateDay(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const updateTopicMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => careerRoadmapService.updateTopic(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const updateResourceMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => careerRoadmapService.updateResource(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  // Delete mutations for nested items
+  const deleteModuleMutation = useMutation({
+    mutationFn: (id: string) => careerRoadmapService.deleteModule(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const deleteWeekMutation = useMutation({
+    mutationFn: (id: string) => careerRoadmapService.deleteWeek(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const deleteDayMutation = useMutation({
+    mutationFn: (id: string) => careerRoadmapService.deleteDay(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const deleteTopicMutation = useMutation({
+    mutationFn: (id: string) => careerRoadmapService.deleteTopic(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
+  });
+
+  const deleteResourceMutation = useMutation({
+    mutationFn: (id: string) => careerRoadmapService.deleteResource(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-careers'] }),
   });
 
   const toggleExpand = (type: string, id: string) => {

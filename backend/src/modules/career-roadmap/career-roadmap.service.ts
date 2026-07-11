@@ -475,12 +475,21 @@ export class CareerRoadmapService {
   }
 
   async createModule(input: CreateModuleInput) {
+    // Get the highest order for this career
+    const lastModule = await prisma.careerRoadmapModule.findFirst({
+      where: { careerId: input.careerId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+
+    const nextOrder = (lastModule?.order ?? -1) + 1;
+
     return prisma.careerRoadmapModule.create({
       data: {
         careerId: input.careerId,
         title: input.title,
         description: input.description,
-        order: input.order ?? 0,
+        order: nextOrder,
       },
     });
   }
@@ -503,10 +512,19 @@ export class CareerRoadmapService {
       throw new NotFoundError('Module not found');
     }
 
+    // Get the highest order for this module
+    const lastWeek = await prisma.careerRoadmapWeek.findFirst({
+      where: { moduleId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+
+    const nextOrder = (lastWeek?.order ?? 0) + 1;
+
     return prisma.careerRoadmapWeek.create({
       data: {
         moduleId,
-        order: input.weekNumber,
+        order: nextOrder,
         title: input.title,
         description: input.description,
       },
@@ -530,11 +548,20 @@ export class CareerRoadmapService {
   }
 
   async createDay(input: CreateDayInput) {
+    // Get the highest order for this week
+    const lastDay = await prisma.careerRoadmapDay.findFirst({
+      where: { weekId: input.weekId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+
+    const nextOrder = (lastDay?.order ?? 0) + 1;
+
     return prisma.careerRoadmapDay.create({
       data: {
         weekId: input.weekId,
-        order: input.dayNumber,
-        dayNumber: input.dayNumber,
+        order: nextOrder,
+        dayNumber: nextOrder,
         title: input.title,
         description: input.description,
         estimatedHours: input.estimatedHours || 0,
@@ -559,13 +586,22 @@ export class CareerRoadmapService {
   }
 
   async createTopic(input: CreateTopicInput) {
+    // Get the highest order for this day
+    const lastTopic = await prisma.careerRoadmapTopic.findFirst({
+      where: { dayId: input.dayId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    });
+
+    const nextOrder = (lastTopic?.order ?? -1) + 1;
+
     return prisma.careerRoadmapTopic.create({
       data: {
         dayId: input.dayId,
         title: input.title,
         description: input.description,
         objective: input.objective,
-        order: input.order,
+        order: nextOrder,
       },
     });
   }
@@ -615,11 +651,19 @@ export class CareerRoadmapService {
     const isFree = typeof input.isFree === 'boolean' ? input.isFree : input.free ?? true;
     const verified = typeof input.verified === 'boolean' ? input.verified : false;
 
+    // Get the topic to use its title as resource title
+    const topic = await prisma.careerRoadmapTopic.findUnique({
+      where: { id: input.topicId },
+      select: { title: true },
+    });
+
+    const resourceTitle = topic?.title || input.title || 'Resource';
+
     return prisma.careerRoadmapResource.create({
       data: {
         topicId: input.topicId,
         type: normalizeResourceType(input.resourceType || input.type),
-        title: input.title,
+        title: resourceTitle,
         provider: input.provider,
         url: input.url,
         free: isFree,
