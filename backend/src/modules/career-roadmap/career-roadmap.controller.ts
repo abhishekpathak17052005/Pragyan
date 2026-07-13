@@ -22,8 +22,9 @@ import {
   generateCareerRoadmapSchema,
 } from './career-roadmap.validators';
 
-export const getCareers = asyncHandler(async (_req: Request, res: Response) => {
-  const careers = await careerRoadmapService.listCareers();
+export const getCareers = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const careers = await careerRoadmapService.listCareers(userId);
   return sendSuccess(res, careers, 200, 'Careers fetched successfully');
 });
 
@@ -214,4 +215,9 @@ export const reorderTopics = asyncHandler(async (req: Request, res: Response) =>
   const input = reorderItemsSchema.parse(req.body);
   const result = await careerRoadmapService.reorderTopics(input);
   return sendSuccess(res, result, 200, 'Topics reordered successfully');
+});
+
+export const fixResourceTitles = asyncHandler(async (_req: Request, res: Response) => {
+  const result = await careerRoadmapService.fixResourceTitles();
+  return sendSuccess(res, result, 200, 'Resource titles fixed successfully');
 });

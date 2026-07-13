@@ -185,6 +185,22 @@ export default function AdminRoadmapBuilderFinal() {
                 <Button onClick={() => openModal('module', { careerId: 'new' })} className="w-full">
                   <Plus className="w-4 h-4 mr-2" /> New Career
                 </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const response = await careerRoadmapService.fixResourceTitles();
+                      const data = await response.json?.() || response;
+                      alert(`✅ Fixed ${data.data?.fixed || data.fixed} resource titles!`);
+                      queryClient.invalidateQueries({ queryKey: ['admin-careers'] });
+                    } catch (error: any) {
+                      alert(`❌ Error: ${error.message}`);
+                    }
+                  }}
+                  variant="outline"
+                  className="w-full text-xs"
+                >
+                  🔧 Fix Resource Titles
+                </Button>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {filteredCareers.map(career => (
                     <button
@@ -442,30 +458,42 @@ function Modal({ type, context, onClose, mutations }: any) {
 
     try {
       if (isEdit && context[`${type}Id`]) {
-        let editPayload: any = { title: formData.title };
+        let editPayload: any = {};
         
-        // For week edits, ensure weekNumber is present and is a number
-        if (type === 'week') {
-          if (formData.weekNumber) {
-            editPayload.weekNumber = typeof formData.weekNumber === 'string' 
-              ? parseInt(formData.weekNumber) 
-              : formData.weekNumber;
-          }
-          // Don't include description for weeks
-        } else if (type === 'day') {
+        // For resources, don't include title (it's auto-generated)
+        if (type === 'resource') {
+          // Only send fields that were provided
+          if (formData.url) editPayload.url = formData.url;
+          if (formData.provider) editPayload.provider = formData.provider;
+          if (formData.type) editPayload.type = formData.type;
           if (formData.description) editPayload.description = formData.description;
-          if (formData.dayNumber) editPayload.dayNumber = formData.dayNumber;
-          if (formData.estimatedHours) editPayload.estimatedHours = formData.estimatedHours;
-        } else if (type === 'topic') {
-          if (formData.description) editPayload.description = formData.description;
-          if (formData.objective) editPayload.objective = formData.objective;
-          if (formData.difficulty) editPayload.difficulty = formData.difficulty;
-          if (formData.estimatedTime) editPayload.estimatedTime = formData.estimatedTime;
-          if (formData.order !== undefined) editPayload.order = formData.order;
-          if (formData.quizUrl) editPayload.quizUrl = formData.quizUrl;
-          if (formData.miniProjectUrl) editPayload.miniProjectUrl = formData.miniProjectUrl;
         } else {
-          if (formData.description) editPayload.description = formData.description;
+          // For other types, include title
+          editPayload.title = formData.title;
+          
+          // For week edits, ensure weekNumber is present and is a number
+          if (type === 'week') {
+            if (formData.weekNumber) {
+              editPayload.weekNumber = typeof formData.weekNumber === 'string' 
+                ? parseInt(formData.weekNumber) 
+                : formData.weekNumber;
+            }
+            // Don't include description for weeks
+          } else if (type === 'day') {
+            if (formData.description) editPayload.description = formData.description;
+            if (formData.dayNumber) editPayload.dayNumber = formData.dayNumber;
+            if (formData.estimatedHours) editPayload.estimatedHours = formData.estimatedHours;
+          } else if (type === 'topic') {
+            if (formData.description) editPayload.description = formData.description;
+            if (formData.objective) editPayload.objective = formData.objective;
+            if (formData.difficulty) editPayload.difficulty = formData.difficulty;
+            if (formData.estimatedTime) editPayload.estimatedTime = formData.estimatedTime;
+            if (formData.order !== undefined) editPayload.order = formData.order;
+            if (formData.quizUrl) editPayload.quizUrl = formData.quizUrl;
+            if (formData.miniProjectUrl) editPayload.miniProjectUrl = formData.miniProjectUrl;
+          } else {
+            if (formData.description) editPayload.description = formData.description;
+          }
         }
         
         console.log('Updating with payload:', { type, editPayload });

@@ -73,6 +73,7 @@ router.post('/resource', validate(createResourceSchema), careerRoadmapController
 router.put('/resource/reorder', careerRoadmapController.reorderResources);
 router.put('/resource/:id', validate(updateResourceSchema), careerRoadmapController.updateResource);
 router.delete('/resource/:id', careerRoadmapController.deleteResource);
+router.post('/resources/fix-titles', careerRoadmapController.fixResourceTitles);
 router.get('/security/metrics', adminController.getSecurityMetrics);
 
 export default router;

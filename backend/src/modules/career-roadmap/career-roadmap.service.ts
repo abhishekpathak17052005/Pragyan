@@ -281,9 +281,33 @@ export class CareerRoadmapService {
     };
   }
 
-  async listCareers() {
+  async listCareers(userId?: string) {
+    // First, get user's career role if userId is provided
+    let userCareerTitle: string | null = null;
+    
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { experience: true },
+      });
+      
+      // Use ONLY the experience field (user's selected career role), not experienceType
+      userCareerTitle = user?.experience || null;
+    }
+
+    const whereClause: any = { status: 'published' };
+    
+    // If user has a career role, filter to roadmaps that match that role
+    if (userCareerTitle && userCareerTitle.trim() !== '') {
+      whereClause.AND = [
+        {
+          title: { contains: userCareerTitle, mode: 'insensitive' },
+        },
+      ];
+    }
+
     const careers = await prisma.careerRoadmap.findMany({
-      where: { status: 'published' },
+      where: whereClause,
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       include: {
         modules: {
@@ -824,6 +848,28 @@ export class CareerRoadmapService {
         },
       },
     });
+  }
+
+  async fixResourceTitles() {
+    // Get all resources with their topics
+    const resources = await prisma.careerRoadmapResource.findMany({
+      include: {
+        topic: {
+          select: { title: true },
+        },
+      },
+    });
+
+    // Update each resource with its topic's title
+    const updates = resources.map(resource =>
+      prisma.careerRoadmapResource.update({
+        where: { id: resource.id },
+        data: { title: resource.topic.title },
+      })
+    );
+
+    await Promise.all(updates);
+    return { fixed: resources.length };
   }
 }
 

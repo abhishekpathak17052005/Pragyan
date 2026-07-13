@@ -229,6 +229,10 @@ export const careerRoadmapService = {
   reorderTopics(orderedIds: string[]) {
     return api.put('/admin/topics/reorder', { orderedIds });
   },
+
+  fixResourceTitles() {
+    return api.post<{ fixed: number }>('/admin/resources/fix-titles', {});
+  },
 };
 
 type CareerDayContext = {
