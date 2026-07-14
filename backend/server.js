@@ -4,10 +4,14 @@ const path = require('path');
 
 const backendDir = __dirname;
 const distServer = path.join(backendDir, 'dist', 'server.js');
+
+// Use shell on Windows to find npm in PATH
+const isWindows = process.platform === 'win32';
+
 const child = spawn('npm', fs.existsSync(distServer) ? ['run', 'start'] : ['run', 'dev'], {
   cwd: backendDir,
   stdio: 'inherit',
-  shell: true,
+  shell: isWindows,
 });
 
 child.on('exit', (code, signal) => {
