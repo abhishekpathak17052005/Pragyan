@@ -136,6 +136,15 @@ model User {
   avatar           String?
   emailVerified    Boolean  @default(false)
   role             String   @default("USER")
+  
+  // Phase 2: Authentication fields
+  userRole         UserRole?
+  accountStatus    AccountStatus @default(EMAIL_PENDING)
+  emailVerifiedAt  DateTime?
+  lastLoginAt      DateTime?
+  organizationId   String?  @db.ObjectId
+  isActive         Boolean  @default(true)
+  
   age              Int?
   location         String?
   phone            String?
@@ -199,6 +208,10 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@index([provider, providerId])
+  @@index([userRole])
+  @@index([accountStatus])
+  @@index([isActive])
+  @@index([organizationId])
 }
 
 // Intelligence debug audit logs for admin access to sensitive intelligence payloads
