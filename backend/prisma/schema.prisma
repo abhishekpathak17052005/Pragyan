@@ -98,6 +98,7 @@ model Organization {
   studentProfiles         StudentProfile[]
   recruiterProfiles       RecruiterProfile[]
   placementOfficerProfiles PlacementOfficerProfile[]
+  invitations             Invitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -198,6 +199,33 @@ model PlacementOfficerProfile {
   @@index([verified])
 }
 
+model Invitation {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  email            String
+  role             UserRole
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  invitedByUserId  String   @db.ObjectId
+  invitedByUser    User     @relation("invitedBy", fields: [invitedByUserId], references: [id])
+  
+  acceptedByUserId String?  @db.ObjectId
+  acceptedByUser   User?    @relation("invitedUser", fields: [acceptedByUserId], references: [id])
+  
+  token            String   @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  status           String   @default("PENDING")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, organizationId, role])
+  @@index([organizationId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
 // ============ USER MODELS ============
 
 model User {
@@ -282,6 +310,8 @@ model User {
   studentProfile         StudentProfile?
   recruiterProfile       RecruiterProfile?
   placementOfficerProfile PlacementOfficerProfile?
+  invitationsReceived    Invitation[] @relation("invitedUser")
+  invitationsSent        Invitation[] @relation("invitedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
