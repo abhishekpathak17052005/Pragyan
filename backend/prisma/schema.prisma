@@ -94,6 +94,11 @@ model Organization {
   verified         Boolean  @default(false)
   isActive         Boolean  @default(true)
 
+  // Relations
+  studentProfiles         StudentProfile[]
+  recruiterProfiles       RecruiterProfile[]
+  placementOfficerProfiles PlacementOfficerProfile[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -122,6 +127,75 @@ model Permission {
   updatedAt DateTime @updatedAt
 
   @@index([resource])
+}
+
+model StudentProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  rollNumber       String?
+  courseYear       String?
+  branch           String?
+  cgpa             Float?
+  tenthBoard       String?
+  tenthScore       Float?
+  twelfthBoard     String?
+  twelfthScore     Float?
+  resumeUrl        String?
+  linkedinUrl      String?
+  githubUrl        String?
+  skills           String[] @default([])
+  interests        String[] @default([])
+  experiences      String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model RecruiterProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  companyName      String
+  designation      String
+  department       String?
+  verified         Boolean  @default(false)
+  verifiedAt       DateTime?
+  verificationNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([verified])
+}
+
+model PlacementOfficerProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  designation      String
+  department       String?
+  officePhone      String?
+  verified         Boolean  @default(false)
+  verifiedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([verified])
 }
 
 // ============ USER MODELS ============
@@ -203,6 +277,11 @@ model User {
   learningVelocities      LearningVelocity[]
   decisionSnapshots       DecisionSnapshot[]
   generatedNotes          GeneratedNote[]
+  
+  // Phase 2: Auth relations
+  studentProfile         StudentProfile?
+  recruiterProfile       RecruiterProfile?
+  placementOfficerProfile PlacementOfficerProfile?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
