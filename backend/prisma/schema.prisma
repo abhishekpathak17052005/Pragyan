@@ -99,6 +99,8 @@ model Organization {
   recruiterProfiles       RecruiterProfile[]
   placementOfficerProfiles PlacementOfficerProfile[]
   invitations             Invitation[]
+  auditLogs               AuditLog[]
+  notifications           Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -226,6 +228,65 @@ model Invitation {
   @@index([expiresAt])
 }
 
+model AuditLog {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  targetUserId     String   @db.ObjectId
+  targetUser       User     @relation("auditLogTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  
+  performedByUserId String  @db.ObjectId
+  performedByUser  User     @relation("auditLogPerformedBy", fields: [performedByUserId], references: [id], onDelete: Cascade)
+  
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  action           AuditAction
+  resourceType     String?
+  resourceId       String?
+  changes          Json?
+  ipAddress        String?
+  userAgent        String?
+  status           String   @default("SUCCESS")
+
+  createdAt DateTime @default(now())
+
+  @@index([targetUserId])
+  @@index([performedByUserId])
+  @@index([organizationId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @db.ObjectId
+  user             User     @relation("notifications", fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  type             NotificationType
+  title            String
+  message          String
+  channels         NotificationChannel[]
+  
+  read             Boolean  @default(false)
+  readAt           DateTime?
+  
+  sentViaEmail     Boolean  @default(false)
+  sentViaPush      Boolean  @default(false)
+  sentViaSMS       Boolean  @default(false)
+  
+  metadata         Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([type])
+  @@index([read])
+  @@index([createdAt])
+}
+
 // ============ USER MODELS ============
 
 model User {
@@ -312,6 +373,9 @@ model User {
   placementOfficerProfile PlacementOfficerProfile?
   invitationsReceived    Invitation[] @relation("invitedUser")
   invitationsSent        Invitation[] @relation("invitedBy")
+  auditLogsTarget        AuditLog[] @relation("auditLogTarget")
+  auditLogsPerformedBy   AuditLog[] @relation("auditLogPerformedBy")
+  notifications          Notification[] @relation("notifications")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
