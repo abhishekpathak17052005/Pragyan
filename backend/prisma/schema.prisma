@@ -102,6 +102,28 @@ model Organization {
   @@index([isActive])
 }
 
+model Role {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  name             UserRole @unique
+  permissions      String[] @default([])
+  description      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  action           String   @unique
+  resource         String
+  description      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resource])
+}
+
 // ============ USER MODELS ============
 
 model User {
