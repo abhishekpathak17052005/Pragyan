@@ -26,6 +26,7 @@ export const createCareerSchema = z.object({
   slug: z.string().min(3).max(200).optional(),
   description: z.string().min(10).max(5000),
   thumbnail: z.string().url().optional().or(z.literal('')),
+  icon: z.string().min(1).max(100).optional(), // Icon for career role (robot, shield, chart, etc.)
   totalWeeks: z.number().int().positive().optional(),
   status: z.enum(['draft', 'published']).optional(),
 });

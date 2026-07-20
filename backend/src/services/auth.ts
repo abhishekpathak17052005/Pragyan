@@ -161,13 +161,17 @@ export class AuthService {
   }
 
   private async issueRefreshToken(userId: string): Promise<string> {
+    const crypto = require('crypto');
     let token = generateRefreshToken(userId);
+    const familyId = crypto.randomBytes(16).toString('hex');
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
         await prisma.refreshToken.create({
           data: {
-            token,
+            tokenHash,
+            familyId,
             userId,
             expiresAt: this.refreshTokenExpiresAt(),
           },
@@ -1077,14 +1081,16 @@ export class AuthService {
   }
 
   async refreshAccessToken(refreshToken: string) {
+    const crypto = require('crypto');
     const decoded = verifyRefreshToken(refreshToken);
 
     if (!decoded) {
       throw new UnauthorizedError('Invalid or expired refresh token');
     }
 
-    const storedToken = await prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const storedToken = await prisma.refreshToken.findFirst({
+      where: { tokenHash },
     });
 
     if (!storedToken) {
@@ -1097,8 +1103,8 @@ export class AuthService {
       throw new UnauthorizedError('Invalid refresh token');
     }
 
-    if (storedToken.expiresAt < new Date()) {
-      await prisma.refreshToken.deleteMany({ where: { token: refreshToken } }).catch(() => undefined);
+    if (!storedToken.expiresAt || storedToken.expiresAt < new Date()) {
+      await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => undefined);
       throw new UnauthorizedError('Refresh token expired');
     }
 
@@ -1116,7 +1122,7 @@ export class AuthService {
       role: user.role as 'USER' | 'ADMIN',
     });
     const newRefreshToken = await this.issueRefreshToken(user.id);
-    await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+    await prisma.refreshToken.delete({ where: { id: storedToken.id } });
 
     void logSecurityEvent({
       event: 'TOKEN_REFRESH',
@@ -1239,6 +1245,7 @@ export class AuthService {
   async logout(refreshToken: string) {
     // Use MongoDB client directly to avoid transaction requirement
     try {
+      const crypto = require('crypto');
       const tokenPayload = verifyRefreshToken(refreshToken);
 
       if (tokenPayload?.id) {
@@ -1275,7 +1282,14 @@ export class AuthService {
         }
       }
 
-      await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const tokenRecord = await prisma.refreshToken.findFirst({ 
+        where: { tokenHash },
+        select: { id: true },
+      });
+      if (tokenRecord) {
+        await prisma.refreshToken.delete({ where: { id: tokenRecord.id } }).catch(() => undefined);
+      }
     } catch (err) {
       console.error('Error during logout token cleanup:', err);
       throw err;

@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, RequireAuth } from "@/context/AuthContext";
+import { StudentRoute } from "@/components/StudentRoute";
+import { RecruiterRoute } from "@/components/RecruiterRoute";
+import { PlacementOfficerRoute } from "@/components/PlacementOfficerRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/layout";
 import Landing from "@/pages/landing";
@@ -25,7 +29,26 @@ const Roadmap = lazy(() => import("@/pages/roadmap"));
 const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
 const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-final"));
+const AdminDashboard = lazy(() => import("@/pages/admin-dashboard"));
+const AdminUsers = lazy(() => import("@/pages/admin-users"));
+const AdminOrganizations = lazy(() => import("@/pages/admin-organizations"));
+const AdminAuditLogs = lazy(() => import("@/pages/admin-audit-logs"));
+const AuthCallback = lazy(() => import("@/pages/auth-callback"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
+const RecruitmentDashboard = lazy(() => import("@/pages/recruitment-dashboard"));
+const CompanyDashboard = lazy(() => import("@/pages/company-dashboard"));
+const JobsPage = lazy(() => import("@/pages/jobs"));
+const MyApplicationsPage = lazy(() => import("@/pages/my-applications"));
+const HiringDrivesPage = lazy(() => import("@/pages/hiring-drives"));
+const CompanyJobsPage = lazy(() => import("@/pages/company-jobs"));
+const CompanyApplicationsPage = lazy(() => import("@/pages/company-applications"));
+const CompanyHiringDrivesPage = lazy(() => import("@/pages/company-hiring-drives"));
+const CompanyAnalyticsPage = lazy(() => import("@/pages/company-analytics"));
+const PlacementDashboardPage = lazy(() => import("@/pages/placement-dashboard"));
+const PlacementStudentsPage = lazy(() => import("@/pages/placement-students"));
+const PlacementCompaniesPage = lazy(() => import("@/pages/placement-companies"));
+const PlacementAnalyticsPage = lazy(() => import("@/pages/placement-analytics"));
+const PlacementApplicationsPage = lazy(() => import("@/pages/placement-applications"));
 
 function RouteFallback() {
   return (
@@ -51,6 +74,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/auth/success" component={AuthSuccess} />
+      <Route path="/auth/callback" component={AuthCallback} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/login" component={AuthPage} />
       <Route path="/signup" component={AuthPage} />
@@ -60,22 +84,171 @@ function Router() {
           <Layout>
             <Suspense fallback={<RouteFallback />}>
               <Switch>
+                {/* Common Routes (all authenticated users) */}
                 <Route path="/home" component={Home} />
-                <Route path="/dashboard" component={Dashboard} />
-                <Route path="/assessments" component={Assessments} />
-                <Route path="/resources" component={Resources} />
-                <Route path="/resources/certificates" component={Certificates} />
                 <Route path="/profile" component={Profile} />
                 <Route path="/profile/skills" component={Skills} />
                 <Route path="/information" component={Information} />
                 <Route path="/information/edit" component={EditInformation} />
-                <Route path="/information/career-readiness" component={CareerReadiness} />
-
-                <Route path="/career-discovery" component={CareerDiscovery} />
-                <Route path="/ai-counselor" component={AICounselor} />
-                <Route path="/roadmap" component={Roadmap} />
-                <Route path="/admin/roadmaps" component={AdminRoadmapManager} />
                 <Route path="/settings" component={SettingsPage} />
+
+                {/* Student Routes */}
+                <Route path="/dashboard">
+                  <StudentRoute>
+                    <Dashboard />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessments">
+                  <StudentRoute>
+                    <Assessments />
+                  </StudentRoute>
+                </Route>
+                <Route path="/resources">
+                  <StudentRoute>
+                    <Resources />
+                  </StudentRoute>
+                </Route>
+                <Route path="/resources/certificates">
+                  <StudentRoute>
+                    <Certificates />
+                  </StudentRoute>
+                </Route>
+                <Route path="/information/career-readiness">
+                  <StudentRoute>
+                    <CareerReadiness />
+                  </StudentRoute>
+                </Route>
+                <Route path="/career-discovery">
+                  <StudentRoute>
+                    <CareerDiscovery />
+                  </StudentRoute>
+                </Route>
+                <Route path="/ai-counselor">
+                  <StudentRoute>
+                    <AICounselor />
+                  </StudentRoute>
+                </Route>
+                <Route path="/roadmap">
+                  <StudentRoute>
+                    <Roadmap />
+                  </StudentRoute>
+                </Route>
+                <Route path="/jobs">
+                  <StudentRoute>
+                    <JobsPage />
+                  </StudentRoute>
+                </Route>
+                <Route path="/my-applications">
+                  <StudentRoute>
+                    <MyApplicationsPage />
+                  </StudentRoute>
+                </Route>
+                <Route path="/hiring-drives">
+                  <StudentRoute>
+                    <HiringDrivesPage />
+                  </StudentRoute>
+                </Route>
+                <Route path="/recruitment">
+                  <StudentRoute>
+                    <RecruitmentDashboard />
+                  </StudentRoute>
+                </Route>
+
+                {/* Recruiter Routes */}
+                <Route path="/company/dashboard">
+                  <RecruiterRoute>
+                    <CompanyDashboard />
+                  </RecruiterRoute>
+                </Route>
+                <Route path="/company/jobs">
+                  <RecruiterRoute>
+                    <CompanyJobsPage />
+                  </RecruiterRoute>
+                </Route>
+                <Route path="/company/applications">
+                  <RecruiterRoute>
+                    <CompanyApplicationsPage />
+                  </RecruiterRoute>
+                </Route>
+                <Route path="/company/drives">
+                  <RecruiterRoute>
+                    <CompanyHiringDrivesPage />
+                  </RecruiterRoute>
+                </Route>
+                <Route path="/company/analytics">
+                  <RecruiterRoute>
+                    <CompanyAnalyticsPage />
+                  </RecruiterRoute>
+                </Route>
+                <Route path="/company">
+                  <RecruiterRoute>
+                    <CompanyDashboard />
+                  </RecruiterRoute>
+                </Route>
+
+                {/* Placement Officer Routes */}
+                <Route path="/placement/dashboard">
+                  <PlacementOfficerRoute>
+                    <PlacementDashboardPage />
+                  </PlacementOfficerRoute>
+                </Route>
+                <Route path="/placement/students">
+                  <PlacementOfficerRoute>
+                    <PlacementStudentsPage />
+                  </PlacementOfficerRoute>
+                </Route>
+                <Route path="/placement/companies">
+                  <PlacementOfficerRoute>
+                    <PlacementCompaniesPage />
+                  </PlacementOfficerRoute>
+                </Route>
+                <Route path="/placement/analytics">
+                  <PlacementOfficerRoute>
+                    <PlacementAnalyticsPage />
+                  </PlacementOfficerRoute>
+                </Route>
+                <Route path="/placement/applications">
+                  <PlacementOfficerRoute>
+                    <PlacementApplicationsPage />
+                  </PlacementOfficerRoute>
+                </Route>
+                <Route path="/placement">
+                  <PlacementOfficerRoute>
+                    <PlacementDashboardPage />
+                  </PlacementOfficerRoute>
+                </Route>
+
+                {/* Admin Routes */}
+                <Route path="/admin/dashboard">
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/users">
+                  <AdminRoute>
+                    <AdminUsers />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/organizations">
+                  <AdminRoute>
+                    <AdminOrganizations />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/audit-logs">
+                  <AdminRoute>
+                    <AdminAuditLogs />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/roadmaps">
+                  <AdminRoute>
+                    <AdminRoadmapManager />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/company/:companyId">
+                  <AdminRoute>
+                    <CompanyDashboard />
+                  </AdminRoute>
+                </Route>
 
                 <Route component={NotFound} />
               </Switch>

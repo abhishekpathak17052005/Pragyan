@@ -19,6 +19,38 @@ enum ResourceType {
   OTHER
 }
 
+// ============ RECRUITMENT ENUMS ============
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  FILLED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  FREELANCE
+  CONTRACT
+}
+
+enum WorkMode {
+  REMOTE
+  ON_SITE
+  HYBRID
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  REJECTED
+  SELECTED
+  ACCEPTED
+  DECLINED
+}
+
 // ============ PHASE 2: AUTHENTICATION ENUMS ============
 
 enum UserRole {
@@ -57,6 +89,14 @@ enum AuditAction {
   RECRUITER_REJECTED
   USER_SUSPENDED
   USER_ACTIVE
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  INVITATION
+  MAGIC_LOGIN
+  EMAIL_CHANGE
 }
 
 enum NotificationType {
@@ -236,16 +276,18 @@ model AuditLog {
   performedByUserId String  @db.ObjectId
   performedByUser  User     @relation("auditLogPerformedBy", fields: [performedByUserId], references: [id], onDelete: Cascade)
   
-  organizationId   String   @db.ObjectId
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId   String?  @db.ObjectId
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   
   action           AuditAction
+  status           String   @default("SUCCESS")
+  failureReason    String?                       // Structured failure reason (USER_NOT_FOUND, EMAIL_NOT_VERIFIED, etc.)
+  
   resourceType     String?
   resourceId       String?
   changes          Json?
   ipAddress        String?
   userAgent        String?
-  status           String   @default("SUCCESS")
 
   createdAt DateTime @default(now())
 
@@ -253,6 +295,8 @@ model AuditLog {
   @@index([performedByUserId])
   @@index([organizationId])
   @@index([action])
+  @@index([status])
+  @@index([failureReason])
   @@index([createdAt])
 }
 
@@ -297,6 +341,7 @@ model User {
   provider         String   @default("local")
   providerId       String?
   avatar           String?
+  profilePicture   String?
   emailVerified    Boolean  @default(false)
   role             String   @default("USER")
   
@@ -304,9 +349,16 @@ model User {
   userRole         UserRole?
   accountStatus    AccountStatus @default(EMAIL_PENDING)
   emailVerifiedAt  DateTime?
+  status           AccountStatus @default(EMAIL_PENDING)
   lastLoginAt      DateTime?
+  lastLoginIp      String?                // Last login IP address
+  lastLoginUserAgent String?              // Last login user agent
   organizationId   String?  @db.ObjectId
   isActive         Boolean  @default(true)
+  
+  // OAuth fields
+  oauthProvider    String?  // "google" or "github"
+  oauthProviderId  String?
   
   age              Int?
   location         String?
@@ -368,6 +420,7 @@ model User {
   generatedNotes          GeneratedNote[]
   
   // Phase 2: Auth relations
+  verificationTokens     VerificationToken[]
   studentProfile         StudentProfile?
   recruiterProfile       RecruiterProfile?
   placementOfficerProfile PlacementOfficerProfile?
@@ -481,14 +534,44 @@ model UserCertification {
 
 model RefreshToken {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  token     String   @unique
+  tokenHash String?                       // SHA256(rawToken), never store raw token
+  familyId  String?                       // Session family ID for token rotation tracking
   userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
+  expiresAt DateTime?
+  revokedAt DateTime?                     // Non-null = token revoked (security incident)
+  
+  // Device metadata for multi-device logout and security
+  deviceId  String?                       // Device/browser fingerprint
+  ipAddress String?                       // IP at login time
+  userAgent String?                       // User-Agent at login time
+  lastUsedAt DateTime?                    // Last refresh time
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([tokenHash])                    // Index only, not unique (handles NULLs)
   @@index([userId])
+  @@index([familyId])                     // For revoking entire family
+  @@index([expiresAt])                    // For cleanup queries
+  @@index([revokedAt])                    // For security queries
+}
+
+model VerificationToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String?
+  purpose   TokenPurpose @default(EMAIL_VERIFY)
+  expiresAt DateTime?
+  usedAt    DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tokenHash])                    // Index, not unique (handles NULLs)
+  @@index([userId])
+  @@index([purpose])
 }
 
 model SecurityLog {
@@ -1634,8 +1717,30 @@ model Company {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Relations
+  hiringDrives   HiringDrive[]
+
   @@index([ownerRecruiterId])
   @@index([name])
+}
+
+model HiringDrive {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  companyId            String   @db.ObjectId
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title                String
+  description          String?
+  collegeId            String?  @db.ObjectId
+  driveDate            DateTime
+  venue                String?
+  mode                 WorkMode @default(ON_SITE)
+  registrationDeadline DateTime?
+  status               String   @default("UPCOMING")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([driveDate])
 }
 
 model RecruiterJob {

@@ -20,7 +20,7 @@ import { aiFirewall } from '@/security/ai/aiFirewall';
 import { aiUsageLimiter } from '@/security/ai/aiUsageLimiter';
 
 // Routes
-import authRoutes from '@/routes/auth';
+import authRoutes from '@/modules/auth'; // Phase 2 auth module
 import roadmapRoutes from '@/routes/roadmap';
 import assessmentRoadmapRoutes from '@/routes/assessmentRoadmap';
 import progressRoutes from '@/routes/progress';
@@ -47,6 +47,8 @@ import mentorRoutes from '@/modules/mentor/mentor.routes';
 import intelligenceRoutes from '@/modules/intelligence/intelligence.routes';
 import { ensureIntelligenceIndexes } from '@/modules/intelligence/intelligence.indexes';
 import notesRoutes from '@/modules/notes/notes.routes';
+import recruitmentRoutes from '@/modules/recruitment/recruitment.routes';
+import placementRoutes from '@/modules/placement/placement.routes';
 import path from 'path';
 import fs from 'fs';
 
@@ -155,6 +157,8 @@ app.use('/api/journey', journeyRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/recruitment', recruitmentRoutes);
+app.use('/api/placement', placementRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Development-only debug routes (do not expose in production)

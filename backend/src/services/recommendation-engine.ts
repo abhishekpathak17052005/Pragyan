@@ -3,6 +3,7 @@ import { careerMatchingEngine, type AssessmentAnswers } from '@/services/career-
 import safeParseAIResponse from '@/ai/safeParser';
 import { ExplainSchema, RoadmapSectionResponseSchema } from '@/ai/schemas';
 import { routeAI } from '@/ai/aiRouter';
+import { getIconForCareer } from '@/modules/career-roadmap/icon-mapping';
 
 export interface RecommendationRequestProfile {
   skills?: string[];
@@ -168,12 +169,13 @@ export class RecommendationEngineService {
     }
   }
 
-  async getLegacyCareerList(userId: string): Promise<Array<{ career: string; score: number; reason: string }>> {
+  async getLegacyCareerList(userId: string): Promise<Array<{ career: string; score: number; reason: string; icon?: string }>> {
     const recommendation = await this.generateRecommendations(userId);
     return recommendation.careerMatches.map((item) => ({
       career: item.career,
       score: item.match,
       reason: item.reasons[0] || `Recommended based on your skill and interest alignment for ${item.career}.`,
+      icon: getIconForCareer(item.career),
     }));
   }
 

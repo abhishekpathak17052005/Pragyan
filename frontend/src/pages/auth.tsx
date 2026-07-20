@@ -1,20 +1,42 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, Eye, Github, LockKeyhole, Mail, Sparkles, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { authService } from "@/services/authService";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/context/AuthContext";
 
 type AuthMode = "signin" | "signup";
 
+/**
+ * Role-based redirect map
+ * After login, users are redirected to their role-specific dashboard
+ */
+const ROLE_REDIRECTS: Record<string, string> = {
+  STUDENT: "/dashboard",
+  RECRUITER: "/company/dashboard",
+  PLACEMENT_OFFICER: "/placement/dashboard",
+  ADMIN: "/admin/dashboard",
+};
+
 export default function AuthPage() {
   const [location, navigate] = useLocation();
+  const { isAuthenticated, userRole } = useAuth();
+  
+  // Auto-redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && userRole) {
+      const redirectUrl = ROLE_REDIRECTS[userRole] || "/home";
+      navigate(redirectUrl);
+    }
+  }, [isAuthenticated, userRole, navigate]);
+
   const initialMode = useMemo<AuthMode>(() => {
     return location.includes("mode=signup") || location.includes("signup")
       ? "signup"
       : "signin";
   }, [location]);
+  
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const { login, register } = useAuth();
   const { data: authConfig } = useQuery({
@@ -31,17 +53,58 @@ export default function AuthPage() {
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") || "");
     const password = String(formData.get("password") || "");
+    const confirmPassword = String(formData.get("confirmPassword") || "");
     const fullName = String(formData.get("fullName") || "");
+    const role = String(formData.get("role") || "STUDENT");
+    const collegeCode = String(formData.get("collegeCode") || "");
+
+    console.log("===== FORM SUBMIT DEBUG =====");
+    console.log("Email:", email);
+    console.log("Password:", password);
+    console.log("Password length:", password.length);
+    console.log("Role:", role);
+    console.log("Full form data:", { email, password, fullName, role, collegeCode });
+    console.log("=============================");
 
     setError("");
     setSubmitting(true);
     try {
       if (isSignup) {
-        await register({ fullName, email, password });
+        // Validate password match
+        if (password !== confirmPassword) {
+          setError("Passwords do not match");
+          setSubmitting(false);
+          return;
+        }
+
+        // Build register request with all required fields
+        const registerData: any = {
+          fullName,
+          email,
+          password,
+          confirmPassword,
+          role,
+        };
+
+        // Add collegeCode if student
+        if (role === "STUDENT" && collegeCode) {
+          registerData.collegeCode = collegeCode;
+        }
+
+        const response = await authService.register(registerData);
+        // After signup, user needs to verify email before login
+        // Show success message and switch to login mode
+        setMode("signin");
+        setError(""); // Clear any errors
       } else {
-        await login({ email, password });
+        console.log("Calling AuthContext.login with:", { email, password });
+        const response = await login({ email, password });
+        console.log("LOGIN RESPONSE:", response);
+        // Auto-redirect based on role
+        const userRole = response.user?.role || role;
+        const redirectUrl = ROLE_REDIRECTS[userRole] || "/home";
+        navigate(redirectUrl);
       }
-      navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
@@ -134,13 +197,41 @@ export default function AuthPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignup && (
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">Full name</span>
-                <span className="relative block">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input name="fullName" className="h-11 pl-10" placeholder="Sanika Bhosale" required />
-                </span>
-              </label>
+              <>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold">Full name</span>
+                  <span className="relative block">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input name="fullName" className="h-11 pl-10" placeholder="Sanika Bhosale" required />
+                  </span>
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold">Role</span>
+                  <select
+                    name="role"
+                    className="h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    required
+                  >
+                    <option value="">Select your role</option>
+                    <option value="STUDENT">Student</option>
+                    <option value="RECRUITER">Recruiter</option>
+                    <option value="PLACEMENT_OFFICER">Placement Officer</option>
+                  </select>
+                </label>
+
+                {/* College code for students */}
+                {(() => {
+                  const formRef = document.querySelector('form');
+                  const roleValue = formRef?.querySelector('select[name="role"]')?.value || '';
+                  return roleValue === 'STUDENT' && (
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-semibold">College Code</span>
+                      <Input name="collegeCode" className="h-11" placeholder="e.g., IIT001" required />
+                    </label>
+                  );
+                })()}
+              </>
             )}
 
             <label className="block">
@@ -159,6 +250,17 @@ export default function AuthPage() {
                 <Eye className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               </span>
             </label>
+
+            {isSignup && (
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold">Confirm Password</span>
+                <span className="relative block">
+                  <LockKeyhole className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input name="confirmPassword" className="h-11 pl-10 pr-10" type="password" placeholder="Confirm password" required />
+                  <Eye className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                </span>
+              </label>
+            )}
 
             {!isSignup && (
               <div className="flex items-center justify-between text-sm">

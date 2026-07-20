@@ -113,7 +113,7 @@ export default function Roadmap() {
   if (careersLoading || careerQuery.isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto px-4 py-8">
           <RoadmapHeaderSkeleton />
           <div className="mt-8">
             <ModuleListSkeleton />
@@ -139,7 +139,7 @@ export default function Roadmap() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-950 dark:via-blue-950 dark:to-slate-900">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
         
         {/* Hero Section */}
         {hasRoadmap && career && (

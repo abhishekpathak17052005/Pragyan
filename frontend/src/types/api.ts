@@ -260,6 +260,7 @@ export interface CareerRoadmapSummary {
   slug: string;
   description: string;
   thumbnail?: string | null;
+  icon?: string | null;
   totalWeeks: number;
   approved?: boolean;
   status?: 'draft' | 'published' | string;

@@ -19,6 +19,7 @@ import {
   UpdateTopicInput,
   UpdateWeekInput,
 } from './career-roadmap.validators';
+import { getIconForCareer } from './icon-mapping';
 import { ResourceType } from '@prisma/client';
 
 function slugify(value: string) {
@@ -458,6 +459,9 @@ export class CareerRoadmapService {
   async createCareer(input: CreateCareerInput) {
     const title = getCareerTitle(input);
     const slug = await makeUniqueSlug(input.slug || title);
+    
+    // Auto-assign icon if not provided
+    const icon = input.icon || getIconForCareer(title);
 
     return prisma.careerRoadmap.create({
       data: {
@@ -465,8 +469,9 @@ export class CareerRoadmapService {
         slug,
         description: input.description,
         thumbnail: normalizeOptionalUrl(input.thumbnail),
+        icon,
         status: input.status || 'published',
-      },
+      } as any,
     });
   }
 
@@ -481,8 +486,9 @@ export class CareerRoadmapService {
         ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.thumbnail !== undefined ? { thumbnail: normalizeOptionalUrl(input.thumbnail) } : {}),
+        ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
-      },
+      } as any,
     });
   }
 

@@ -162,10 +162,14 @@ const repo = new RecruiterRepository();
 
 export class RecruiterService {
   private async issueRefreshToken(userId: string) {
+    const crypto = require('crypto');
     const token = generateRefreshToken(userId);
+    const familyId = crypto.randomBytes(16).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     await prisma.refreshToken.create({
       data: {
-        token,
+        tokenHash,
+        familyId,
         userId,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
