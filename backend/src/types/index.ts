@@ -54,3 +54,4 @@ export interface PaginatedResponse<T> {
 
 export * from './auth';
 export * from './api';
+export * from './recruitment';

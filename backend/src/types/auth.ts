@@ -1,7 +1,8 @@
 export interface JwtPayload {
   id: string;
   email: string;
-  role: 'USER' | 'ADMIN' | 'RECRUITER';
+  role: 'STUDENT' | 'RECRUITER' | 'PLACEMENT_OFFICER' | 'ADMIN';  // Native roles, no mapping
+  ver?: number;  // JWT version for forward compatibility
   iat?: number;
   exp?: number;
 }

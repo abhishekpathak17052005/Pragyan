@@ -1,87 +1,356 @@
-# Pragyan Database Reference
+# Database Schema Documentation
+
+**Database:** MongoDB  
+**Prisma Version:** 6.19.0  
+**Last Updated:** July 14, 2026
+
+---
 
 ## Overview
-Pragyan uses Prisma with MongoDB. The schema is intentionally layered so roadmap generation, learning resources, progress tracking, XP, and assessment telemetry all share a common core instead of duplicating concepts in separate collections.
 
-## Core Learning Hierarchy
+Pragyan uses MongoDB via Prisma ORM.
 
-### `CareerRoadmap`
-Represents the top-level career curriculum. It is the parent container for modules, weeks, days, topics, and resources.
+### Core Models
 
-### `CareerRoadmapModule`
-Represents a broad curriculum phase or module inside a career roadmap.
+#### Authentication
+- `User` - User account, profile, credentials
+- `RefreshToken` - Session management, multi-device support
+- `VerificationToken` - Email verification, password reset tokens
+- `AuditLog` - Security audit trail
 
-### `CareerRoadmapWeek`
-Groups a roadmap into weekly learning blocks.
+#### Organization
+- `Organization` - Companies, colleges
+- `Role` - Role definitions
+- `Permission` - Permission definitions
 
-### `CareerRoadmapDay`
-Represents a day-level learning unit.
+#### User Profiles
+- `StudentProfile` - Student-specific data
+- `RecruiterProfile` - Recruiter-specific data
+- `PlacementOfficerProfile` - College staff data
 
-### `CareerRoadmapTopic`
-Represents the smallest structured curriculum item in the roadmap tree. Topics are the main attachment point for learning resources.
+#### Learning (Phase 3+)
+- `Roadmap` - Learning paths
+- `Module` - Course modules
+- `Resource` - Learning materials
+- `Quiz` - Assessments
 
-### `CareerRoadmapResource`
-Represents curated content linked to a topic.
+#### Recruitment (Phase 5+)
+- `Company` - Recruiting companies
+- `Job` - Job postings
+- `Application` - Job applications
 
-## Resource Intelligence Models
+#### Placement (Phase 6+)
+- `Drive` - Hiring drives
+- `PlacementRecord` - Placement outcomes
 
-### `ResourceLearningHistory`
-Tracks how a user interacts with a learning resource.
+---
 
-This model is the foundation for the resource intelligence layer. It supports personalized ranking, history-aware recommendations, and the future progress engine without creating a second parallel tracking system.
+## Authentication Models
 
-Typical uses:
-- mark a resource as started or completed
-- record whether a resource was verified or useful
-- store user-specific learning history for ranking and adaptation
+### User
 
-## Progress Models
+```prisma
+model User {
+  id                String
+  email             String @unique
+  password          String
+  fullName          String
+  
+  // Phase 2: Auth fields
+  userRole          UserRole?
+  accountStatus     AccountStatus @default(EMAIL_PENDING)
+  emailVerifiedAt   DateTime?
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  lastLoginUserAgent String?
+  
+  // Relations
+  refreshTokens     RefreshToken[]
+  verificationTokens VerificationToken[]
+  auditLogs         AuditLog[]
+  
+  // ... other fields
+}
+```
 
-### `UserProgress`
-Stores per-user progress state.
+**Indexes:**
+- `email` (unique)
+- `accountStatus`
+- `userRole`
 
-### `CompletedRoadmap`
-Stores completed roadmap records.
+### RefreshToken
 
-These tables support roadmap-level completion and dashboard aggregation.
+```prisma
+model RefreshToken {
+  id         String
+  tokenHash  String @unique      // SHA256 hash
+  familyId   String              // Session family
+  userId     String
+  
+  expiresAt  DateTime
+  revokedAt  DateTime?           // Null = valid, Set = revoked
+  
+  deviceId   String?
+  ipAddress  String?
+  userAgent  String?
+  lastUsedAt DateTime?
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+```
 
-## XP and Daily Learning Models
+**Indexes:**
+- `tokenHash` (unique)
+- `userId`
+- `familyId` (for family revocation)
+- `expiresAt` (for cleanup)
+- `revokedAt` (for security queries)
 
-### `UserXpLog`
-Stores XP award history for a user.
+**Purpose:**
+- Session management
+- Multi-device tracking
+- Token theft detection
+- Audit trail
 
-### `DailyQuizAttempt`
-Stores daily quiz attempt records.
+### VerificationToken
 
-### `UserDailyLearning`
-Stores daily learning activity records.
+```prisma
+model VerificationToken {
+  id        String
+  tokenHash String @unique      // SHA256 hash
+  userId    String
+  
+  purpose   TokenPurpose        // EMAIL_VERIFY, PASSWORD_RESET, etc.
+  expiresAt DateTime
+  usedAt    DateTime?           // Null = unused, Set = consumed
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
-These models support gamification, retention loops, and daily engagement tracking.
+enum TokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  INVITATION
+  MAGIC_LOGIN
+  EMAIL_CHANGE
+}
+```
 
-## Assessment and Intelligence Models
+**Indexes:**
+- `tokenHash` (unique)
+- `userId`
+- `purpose`
+- `expiresAt` (for cleanup)
 
-The schema also contains assessment and adaptive-learning records used by the recommendation and curriculum pipelines.
+**Purpose:**
+- One-time token verification
+- Email confirmation
+- Password resets
+- Future: invitation links, magic login
 
-Common patterns include:
-- assessment result storage
-- question banks and adaptive decision data
-- telemetry for AI-assisted learning flows
+### AuditLog
 
-## Schema Design Notes
+```prisma
+model AuditLog {
+  id              String
+  targetUserId    String          // User being audited
+  performedByUserId String        // User performing action
+  organizationId  String
+  
+  action          AuditAction     // LOGIN, REGISTER, EMAIL_VERIFIED, etc.
+  status          String          // SUCCESS, FAILURE
+  failureReason   String?         // Structured reason if failed
+  
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+}
 
-### Hierarchical curriculum model
-The roadmap hierarchy is normalized so the UI can render curriculum structure at multiple levels while the admin tools can update individual layers without rewriting the entire roadmap.
+enum AuditAction {
+  USER_REGISTERED
+  EMAIL_VERIFIED
+  LOGIN
+  LOGOUT
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  // ... etc
+}
+```
 
-### Resource-first personalization
-Resources are linked directly to topics and are enriched with user history, which makes it possible to rank learning content by relevance and engagement instead of only by static metadata.
+**Indexes:**
+- `targetUserId`
+- `action`
+- `status`
+- `failureReason`
+- `createdAt` (for time-range queries)
 
-### Progress reuse
-The progress engine should reuse `ResourceLearningHistory` and existing roadmap progress collections rather than adding duplicate completion tracking tables.
+**Purpose:**
+- Security audit trail
+- Analytics
+- Compliance
+- Incident forensics
 
-### Prisma validation
-The schema has already been validated successfully, so the documented model names and relations are aligned with the current database design.
+---
 
-## Operational Notes
-- MongoDB is the primary database.
-- Prisma is used as the data access layer.
-- The schema should remain the source of truth for collection shape and relation semantics.
+## Enums
+
+### UserRole
+```
+STUDENT
+RECRUITER
+PLACEMENT_OFFICER
+ADMIN
+```
+
+### AccountStatus
+```
+EMAIL_PENDING           // Registered, awaiting email verification
+ACTIVE                  // Verified and approved
+PENDING                 // Verified but awaiting admin approval
+REJECTED                // Application rejected
+SUSPENDED               // Banned from platform
+```
+
+### TokenPurpose
+```
+EMAIL_VERIFY            // Email verification link
+PASSWORD_RESET          // Password reset link
+INVITATION              // Invitation to join (future)
+MAGIC_LOGIN             // One-click login (future)
+EMAIL_CHANGE            // Email change verification (future)
+```
+
+### AuditAction
+```
+USER_REGISTERED
+EMAIL_VERIFIED
+LOGIN
+LOGOUT
+PASSWORD_RESET_REQUESTED
+PASSWORD_RESET_COMPLETED
+ACCOUNT_SUSPENDED
+ACCOUNT_ACTIVATED
+```
+
+---
+
+## Relationships
+
+### User → RefreshToken (1:many)
+- User can have multiple refresh tokens (multi-device)
+- Delete on cascade
+
+### User → VerificationToken (1:many)
+- User can have multiple verification tokens
+- Delete on cascade
+
+### User → AuditLog (1:many)
+- All login/security actions are logged
+- Immutable (never deleted)
+
+---
+
+## Queries
+
+### Session Management
+
+**Get active sessions for user:**
+```
+RefreshToken.findMany({
+  where: {
+    userId,
+    expiresAt: { gt: now },
+    revokedAt: null
+  }
+})
+```
+
+**Revoke session family:**
+```
+RefreshToken.updateMany({
+  where: { familyId },
+  data: { revokedAt: now }
+})
+```
+
+### Audit
+
+**Get login history:**
+```
+AuditLog.findMany({
+  where: {
+    targetUserId,
+    action: 'LOGIN',
+    status: 'SUCCESS'
+  },
+  orderBy: { createdAt: 'desc' }
+})
+```
+
+**Find suspicious activity:**
+```
+AuditLog.findMany({
+  where: {
+    action: 'LOGIN',
+    failureReason: { in: ['THROTTLED', 'INVALID_PASSWORD'] },
+    createdAt: { gte: last24hours }
+  }
+})
+```
+
+### Cleanup
+
+**Delete expired tokens:**
+```
+VerificationToken.deleteMany({
+  where: { expiresAt: { lt: now } }
+})
+
+RefreshToken.deleteMany({
+  where: { expiresAt: { lt: now } }
+})
+```
+
+---
+
+## Backup Strategy
+
+- **Frequency:** Daily
+- **Location:** Cloud backup (AWS S3 / GCP Cloud Storage)
+- **Retention:** 30 days
+- **Test:** Monthly restore test
+
+---
+
+## Performance Considerations
+
+| Operation | Index | Complexity |
+|-----------|-------|-----------|
+| Find user | email | O(1) |
+| Find token | tokenHash | O(1) |
+| Find family | familyId | O(n) where n=devices |
+| Get audit logs | targetUserId | O(log n) |
+| Delete expired | expiresAt | O(n) |
+
+---
+
+## Future Phases
+
+### Phase 3: Roadmaps
+- Add `Roadmap`, `Module`, `Resource`, `Quiz` models
+
+### Phase 5: Recruitment
+- Add `Company`, `Job`, `Application` models
+
+### Phase 6: Placement
+- Add `Drive`, `PlacementRecord` models
+
+---
+
+See also:
+- [Schema Diagram](./database/schema-diagram.md)
+- [Migration Guide](./database/migrations.md)
+- [Backup & Recovery](./deployment/backup-recovery.md)

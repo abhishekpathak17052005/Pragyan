@@ -9,6 +9,7 @@ export interface AICareerRecommendation {
   career: string;
   score: number;
   reason?: string;
+  icon?: string; // Career icon name for UI display
 }
 
 export interface AIChatAction {

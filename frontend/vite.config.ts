@@ -12,7 +12,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
-const backendUrl = process.env.VITE_BACKEND_URL ?? "http://localhost:5000";
+const backendUrl = process.env.VITE_BACKEND_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   base: basePath,
@@ -29,7 +29,7 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
   },
   server: {

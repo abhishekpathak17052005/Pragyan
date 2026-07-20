@@ -12,6 +12,11 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+  // Build 6-month window for user growth chart
+  const now = new Date();
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
   let currentUserCount = 0;
   let activeCurrentUserCount = 0;
   let adminUserCount = 0;
@@ -38,6 +43,8 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     skillCount,
     assessmentCount,
     resourceCount,
+    roleGroups,
+    recentUsers,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { updatedAt: { gte: sevenDaysAgo } } }),
@@ -45,7 +52,43 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     prisma.skill.count(),
     prisma.assessmentSession.count(),
     prisma.resource.count(),
+    prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
+    // Fetch users created in last 6 months for the growth chart
+    prisma.user.findMany({
+      where: { createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    }),
   ]);
+
+  // Build role distribution array
+  const roleColors: Record<string, string> = {
+    USER: '#3b82f6',
+    ADMIN: '#ef4444',
+    RECRUITER: '#10b981',
+    PLACEMENT_OFFICER: '#f59e0b',
+  };
+  const roleDistribution = roleGroups.map((g) => ({
+    name: g.role === 'USER' ? 'Students' : g.role.charAt(0) + g.role.slice(1).toLowerCase().replace(/_/g, ' '),
+    value: g._count.id,
+    color: roleColors[g.role] ?? '#8b5cf6',
+  }));
+
+  // Build monthly growth buckets (last 6 months)
+  const monthBuckets: Record<string, number> = {};
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    monthBuckets[key] = 0;
+  }
+  for (const u of recentUsers) {
+    const key = `${u.createdAt.getFullYear()}-${String(u.createdAt.getMonth() + 1).padStart(2, '0')}`;
+    if (key in monthBuckets) monthBuckets[key]++;
+  }
+  const userGrowth = Object.entries(monthBuckets).map(([key, count]) => {
+    const [year, month] = key.split('-');
+    return { name: monthNames[parseInt(month, 10) - 1], users: count, month: `${year}-${month}` };
+  });
 
   return sendSuccess(res, {
     totalUsers,
@@ -57,6 +100,8 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     skillCount,
     assessmentCount,
     resourceCount,
+    roleDistribution,
+    userGrowth,
   }, 200, 'Admin dashboard analytics fetched');
 });
 
@@ -70,6 +115,10 @@ export const getUsers = asyncHandler(async (_req: Request, res: Response) => {
       role: true,
       xp: true,
       streak: true,
+      isActive: true,
+      accountStatus: true,
+      emailVerified: true,
+      lastLoginAt: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -406,6 +455,62 @@ export const upsertWeights = asyncHandler(async (req: Request, res: Response) =>
 export const getWeights = asyncHandler(async (_req: Request, res: Response) => {
   const raw = await redisClient.get('admin:adaptive:weights');
   return sendSuccess(res, raw ? JSON.parse(raw) : null, 200, 'Adaptive weights fetched');
+});
+
+export const getOrganizations = asyncHandler(async (_req: Request, res: Response) => {
+  const organizations = await prisma.organization.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      email: true,
+      phone: true,
+      city: true,
+      state: true,
+      country: true,
+      website: true,
+      verified: true,
+      isActive: true,
+      createdAt: true,
+      _count: {
+        select: {
+          studentProfiles: true,
+          recruiterProfiles: true,
+          placementOfficerProfiles: true,
+        },
+      },
+    },
+  });
+
+  return sendSuccess(res, organizations, 200, 'Organizations fetched');
+});
+
+export const updateOrganizationStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { isActive, verified } = req.body as { isActive?: boolean; verified?: boolean };
+
+  const org = await prisma.organization.update({
+    where: { id },
+    data: {
+      ...(isActive !== undefined ? { isActive } : {}),
+      ...(verified !== undefined ? { verified } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      verified: true,
+    },
+  });
+
+  return sendSuccess(res, org, 200, 'Organization updated');
+});
+
+export const deleteOrganization = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await prisma.organization.delete({ where: { id } });
+  return sendSuccess(res, { id }, 200, 'Organization deleted');
 });
 
 export const createCareer = asyncHandler(async (req: Request, res: Response) => {

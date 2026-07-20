@@ -211,13 +211,9 @@ export function LevelCard({
           >
             <div className="inline-block">
               <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-2">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                  className="text-4xl font-bold"
-                >
+                <div className="text-4xl font-bold">
                   {level}
-                </motion.div>
+                </div>
               </div>
             </div>
           </motion.div>

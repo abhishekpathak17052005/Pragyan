@@ -139,9 +139,13 @@ function executePassportCallback(strategy: 'google' | 'github') {
 
             // Persist refresh token
             try {
+              const crypto = require('crypto');
+              const familyId = crypto.randomBytes(16).toString('hex');
+              const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
               await prisma.refreshToken.create({
                 data: {
-                  token: refreshToken,
+                  tokenHash,
+                  familyId,
                   userId: linkedUser.id,
                   expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
                 },

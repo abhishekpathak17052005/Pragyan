@@ -1,540 +1,186 @@
-# Pragyan API Reference
+# Pragyan API Documentation
+
+**Current Version:** v0.1.0-auth-core  
+**Last Updated:** July 14, 2026
+
+---
 
 ## Overview
-Pragyan exposes REST APIs under `/api`. Most learning and dashboard routes are authenticated, while assessment and public roadmap discovery endpoints are mixed between public and authenticated access depending on the use case.
+
+Pragyan backend exposes RESTful APIs for:
+- Authentication (register, login, verify email)
+- User profiles
+- Roadmaps
+- Learning resources
+- Assessments
+- Recruitment
+- Placement
+
+## API Endpoints
+
+### Authentication (Phase 2 - Complete)
+
+#### Public Endpoints
+
+**POST /api/auth/register**
+- Input: `{ email, password, fullName, role, collegeCode?, companyInviteToken? }`
+- Output: `{ message, email }`
+- Status: ✅ COMPLETE (Unit 3)
+
+**GET /api/auth/verify-email?token=xxx**
+- Input: Query param `token`
+- Output: `{ message, accountStatus }`
+- Status: ✅ COMPLETE (Unit 4)
+
+**POST /api/auth/login**
+- Input: `{ email, password }`
+- Output: `{ accessToken, refreshToken, user }`
+- Status: ✅ COMPLETE (Unit 5)
+
+**POST /api/auth/refresh** (COMING SOON)
+- Input: `{ refreshToken }`
+- Output: `{ accessToken, refreshToken }`
+- Status: 🟡 Unit 6
+
+**POST /api/auth/forgot-password** (COMING SOON)
+- Input: `{ email }`
+- Output: `{ message }`
+- Status: 🟡 Unit 8
+
+**POST /api/auth/reset-password** (COMING SOON)
+- Input: `{ token, newPassword }`
+- Output: `{ message }`
+- Status: 🟡 Unit 9
+
+#### Protected Endpoints
+
+**GET /api/auth/me**
+- Authorization: Bearer token
+- Output: User profile with role and organization
+- Status: ✅ COMPLETE (Unit 2)
+
+**POST /api/auth/logout** (COMING SOON)
+- Authorization: Bearer token
+- Input: `{ refreshToken, logoutAllDevices? }`
+- Output: `{ message }`
+- Status: 🟡 Unit 7
+
+### User Profiles
+
+(Phase 3+)
+
+### Roadmaps
+
+(Phase 3+)
+
+### Learning Resources
+
+(Phase 3+)
+
+### Assessments
+
+(Phase 3+)
+
+### Recruitment
+
+(Phase 5+)
+
+### Placement
+
+(Phase 6+)
+
+---
 
 ## Authentication
-- `authenticate` middleware protects user-specific routes.
-- `authorize('ADMIN')` protects admin routes.
-- Several AI routes are also guarded by rate limiting and AI firewall controls.
 
-## Assessment APIs
+All protected endpoints require:
 
-### `POST /api/assessment/start`
-Purpose: Start a new assessment session.
+```
+Authorization: Bearer <accessToken>
+```
 
-Authentication: Public
+Access tokens expire in 24 hours.
 
-Request:
+To refresh: `POST /api/auth/refresh` with refresh token.
+
+---
+
+## Error Handling
+
+All errors follow this format:
+
 ```json
 {
-  "category": "string",
-  "mode": "string"
+  "success": false,
+  "message": "Human-readable error message",
+  "code": "ERROR_CODE"
 }
 ```
 
-### `POST /api/assessment/answer`
-Purpose: Submit an assessment answer.
+### Common Error Codes
 
-Authentication: JWT
+| Code | Status | Meaning |
+|------|--------|---------|
+| INVALID_CREDENTIALS | 401 | Email or password incorrect |
+| EMAIL_NOT_VERIFIED | 401 | User hasn't verified email |
+| ACCOUNT_PENDING | 403 | User awaiting admin approval |
+| THROTTLED | 429 | Too many login attempts |
+| UNAUTHORIZED | 401 | Missing or invalid token |
+| NOT_FOUND | 404 | Resource doesn't exist |
+| CONFLICT | 409 | Resource already exists |
+| VALIDATION_ERROR | 400 | Invalid input |
 
-### `POST /api/assessment/submit`
-Purpose: Submit the adaptive assessment.
+---
 
-Authentication: JWT
+## Pagination
 
-### `GET /api/assessment/results/:id`
-Purpose: Fetch an adaptive assessment result.
+(Phase 3+)
 
-Authentication: JWT
+---
 
-### `GET /api/assessment/questions`
-Purpose: Fetch assessment questions.
+## Rate Limiting
 
-Authentication: Public
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| POST /auth/login | 5 attempts | 15 minutes |
+| POST /auth/register | 10 requests | 1 hour |
+| POST /auth/refresh | 60 requests | 1 hour |
 
-### `GET /api/assessment/questions/:category`
-Purpose: Fetch category-specific assessment questions.
+---
 
-Authentication: Public
+## CORS
 
-### `POST /api/assessment/create`
-Purpose: Admin-create an assessment.
+Configured in `.env`:
+- `CORS_ORIGIN`
+- `CORS_CREDENTIALS`
 
-Authentication: Admin JWT
+---
 
-### `POST /api/assessment/submit-legacy`
-Purpose: Legacy assessment submission endpoint.
+## Versioning
 
-Authentication: JWT
+API versioning via URL path:
+- `/api/v1/auth/login` (current)
+- `/api/v2/auth/login` (future, if breaking changes)
 
-### `GET /api/assessment/result/:resultId`
-Purpose: Fetch legacy assessment result.
+---
 
-Authentication: JWT
+## Status Codes
 
-### `POST /api/assessment/save`
-Purpose: Save assessment answers.
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad request |
+| 401 | Unauthorized |
+| 403 | Forbidden |
+| 404 | Not found |
+| 409 | Conflict |
+| 429 | Rate limited |
+| 500 | Server error |
 
-Authentication: JWT
+---
 
-### `GET /api/assessment/history`
-Purpose: Fetch user assessment history.
-
-Authentication: JWT
-
-### `GET /api/assessment/latest`
-Purpose: Fetch latest assessment result.
-
-Authentication: JWT
-
-### `POST /api/assessment/hybrid/parse-resume`
-Purpose: Parse uploaded or submitted resume content.
-
-Authentication: JWT
-
-### `POST /api/assessment/hybrid/answers`
-Purpose: Save hybrid assessment answers.
-
-Authentication: JWT
-
-### `GET /api/assessment/hybrid/domain-questions/:domain`
-Purpose: Fetch questions for a specific assessment domain.
-
-Authentication: Public
-
-### `POST /api/assessment/hybrid/start`
-Purpose: Start a hybrid assessment session.
-
-Authentication: Public
-
-### `POST /api/assessment/hybrid/:sessionId/answer`
-Purpose: Submit an answer for a hybrid assessment session.
-
-Authentication: Public
-
-### `POST /api/assessment/generate`
-Purpose: Admin-generated assessment creation.
-
-Authentication: Admin JWT
-
-### `POST /api/assessment/next`
-Purpose: Fetch the next adaptive assessment questions.
-
-Authentication: Public
-
-### `GET /api/assessment/decision/start`
-Purpose: Start a decision-tree assessment.
-
-Authentication: Public
-
-### `POST /api/assessment/decision/next`
-Purpose: Answer the next decision-tree step.
-
-Authentication: Public
-
-### `POST /api/assessment/decision/complete`
-Purpose: Complete the decision-tree assessment.
-
-Authentication: JWT
-
-### `GET /api/assessment/decision/result/:sessionId`
-Purpose: Fetch a decision-tree result.
-
-Authentication: JWT
-
-## Roadmap APIs
-
-### `GET /api/roadmaps`
-Purpose: Fetch public roadmap catalog.
-
-Authentication: Public
-
-### `GET /api/roadmaps/search`
-Purpose: Search roadmaps.
-
-Authentication: Public
-
-### `GET /api/roadmaps/categories`
-Purpose: List roadmap categories.
-
-Authentication: Public
-
-### `GET /api/roadmaps/category/:category`
-Purpose: Fetch roadmaps by category.
-
-Authentication: Public
-
-### `GET /api/roadmaps/:id`
-Purpose: Fetch a roadmap by id.
-
-Authentication: Public
-
-### `GET /api/roadmaps/skillup/:careerId`
-Purpose: Fetch a skill-up roadmap for a career.
-
-Authentication: JWT
-
-### `POST /api/roadmaps/progress`
-Purpose: Save roadmap progress.
-
-Authentication: JWT
-
-### `GET /api/roadmaps/progress`
-Purpose: Fetch current roadmap progress.
-
-Authentication: JWT
-
-### `PATCH /api/roadmaps/task/:id`
-Purpose: Update a roadmap task's completion state.
-
-Authentication: JWT
-
-### `POST /api/roadmaps`
-Purpose: Admin-create a roadmap.
-
-Authentication: Admin JWT
-
-### `PUT /api/roadmaps/:id`
-Purpose: Admin-update a roadmap.
-
-Authentication: Admin JWT
-
-### `DELETE /api/roadmaps/:id`
-Purpose: Admin-delete a roadmap.
-
-Authentication: Admin JWT
-
-## Career Roadmap APIs
-
-### `GET /api/careers`
-Purpose: List approved career roadmaps.
-
-Authentication: Public
-
-### `GET /api/careers/:slug`
-Purpose: Fetch a full career roadmap by slug.
-
-Authentication: Public
-
-### `GET /api/topics/:id`
-Purpose: Fetch a topic by id.
-
-Authentication: Public
-
-### `GET /api/topics/:id/resources`
-Purpose: Fetch resources for a topic.
-
-Authentication: Public
-
-## Learning Resource APIs
-
-### `GET /api/learning-resources`
-Purpose: List curated learning resources.
-
-Authentication: Public
-
-### `GET /api/learning-resources/roadmaps/:roadmapId`
-Purpose: List learning resources for a roadmap.
-
-Authentication: Public
-
-### `GET /api/learning-resources/personalized`
-Purpose: Fetch personalized learning resources.
-
-Authentication: JWT
-
-### `GET /api/learning-resources/history`
-Purpose: Fetch learning resource history.
-
-Authentication: JWT
-
-### `POST /api/learning-resources/history`
-Purpose: Upsert learning resource history.
-
-Authentication: JWT
-
-## Progress APIs
-
-### `GET /api/progress/:roadmapId`
-Purpose: Fetch progress for a roadmap.
-
-Authentication: JWT
-
-### `POST /api/progress/complete-task`
-Purpose: Mark a task as completed.
-
-Authentication: JWT
-
-### `POST /api/progress/complete-roadmap`
-Purpose: Mark a roadmap as completed.
-
-Authentication: JWT
-
-### `GET /api/progress/user/dashboard`
-Purpose: Fetch dashboard progress summary.
-
-Authentication: JWT
-
-## Admin APIs
-
-### `GET /api/admin/dashboard`
-Purpose: Fetch admin dashboard metrics.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/users`
-Purpose: List users.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/current-users`
-Purpose: List current active users.
-
-Authentication: Admin JWT
-
-### `PATCH /api/admin/users/:id/role`
-Purpose: Update a user's role.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/roadmaps`
-Purpose: Fetch roadmap analytics.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/resources`
-Purpose: Fetch admin resources.
-
-Authentication: Admin JWT
-
-### `POST /api/admin/resources`
-Purpose: Create an admin resource.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/resources/:id`
-Purpose: Update an admin resource.
-
-Authentication: Admin JWT
-
-### `DELETE /api/admin/resources/:id`
-Purpose: Delete an admin resource.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/assessments`
-Purpose: Fetch assessment analytics.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/assessments/completion-rates`
-Purpose: Fetch assessment completion rates.
-
-Authentication: Admin JWT
-
-### `POST /api/admin/assessment-questions`
-Purpose: Create assessment questions.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/adaptive/decision-tree`
-Purpose: Fetch adaptive decision tree.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/adaptive/decision-tree`
-Purpose: Update adaptive decision tree.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/adaptive/weights`
-Purpose: Fetch adaptive weights.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/adaptive/weights`
-Purpose: Update adaptive weights.
-
-Authentication: Admin JWT
-
-### `POST /api/admin/careers`
-Purpose: Admin-create a career roadmap.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/careers/:id/weights`
-Purpose: Update career weights.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/career-resources`
-Purpose: List topic resources.
-
-Authentication: Admin JWT
-
-### `POST /api/admin/resource`
-Purpose: Add a topic resource.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/resource/:id`
-Purpose: Update a topic resource.
-
-Authentication: Admin JWT
-
-### `DELETE /api/admin/resource/:id`
-Purpose: Delete a topic resource.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/resource/reorder`
-Purpose: Reorder resources for a topic.
-
-Authentication: Admin JWT
-
-### `POST /api/admin/generate-roadmap`
-Purpose: Generate a curriculum preview.
-
-Authentication: Admin JWT
-
-### `POST /api/admin/approve-roadmap`
-Purpose: Approve and persist a roadmap.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/module/:id`
-Purpose: Update a roadmap module.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/week/:id`
-Purpose: Update a roadmap week.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/day/:id`
-Purpose: Update a roadmap day.
-
-Authentication: Admin JWT
-
-### `PUT /api/admin/topic/:id`
-Purpose: Update a roadmap topic.
-
-Authentication: Admin JWT
-
-### `GET /api/admin/security/metrics`
-Purpose: Fetch security metrics.
-
-Authentication: Admin JWT
-
-## AI APIs
-
-### `GET /api/ai/recommend-careers`
-Purpose: Fetch career recommendations.
-
-Authentication: Public
-
-### `GET /api/ai/roadmaps/:career`
-Purpose: Fetch recommended roadmaps for a career.
-
-Authentication: Public
-
-### `POST /api/ai/personalized-roadmap`
-Purpose: Generate a personalized roadmap.
-
-Authentication: JWT
-
-### `GET /api/ai/status`
-Purpose: Check AI service status.
-
-Authentication: Public
-
-### `GET /api/ai/telemetry`
-Purpose: Fetch AI telemetry.
-
-Authentication: Public
-
-### `POST /api/ai/chat`
-Purpose: Chat with the AI assistant.
-
-Authentication: JWT
-
-### `POST /api/ai/action-event`
-Purpose: Record AI action telemetry.
-
-Authentication: JWT
-
-### `POST /api/ai/daily-plan`
-Purpose: Generate a daily learning plan.
-
-Authentication: JWT
-
-### `POST /api/ai/report`
-Purpose: Generate an assessment report.
-
-Authentication: JWT
-
-### `POST /api/ai/roadmap`
-Purpose: Generate a learning roadmap.
-
-Authentication: JWT
-
-### `GET /api/ai/decision/evaluate`
-Purpose: Evaluate a decision tree.
-
-Authentication: JWT
-
-### `POST /api/ai/decision/snapshot`
-Purpose: Save a decision snapshot.
-
-Authentication: JWT
-
-### `GET /api/ai/decision/snapshots`
-Purpose: Fetch decision snapshots.
-
-Authentication: JWT
-
-### `GET /api/ai/memory`
-Purpose: Fetch AI memory profile.
-
-Authentication: JWT
-
-### `POST /api/ai/memory`
-Purpose: Save AI memory profile.
-
-Authentication: JWT
-
-### `POST /api/ai/memory/recommendation`
-Purpose: Record recommendation history.
-
-Authentication: JWT
-
-### `POST /api/ai/roadmap/mutate`
-Purpose: Record roadmap mutation history.
-
-Authentication: JWT
-
-### `GET /api/ai/personality`
-Purpose: Fetch personality profile.
-
-Authentication: JWT
-
-### `POST /api/ai/personality`
-Purpose: Save personality profile.
-
-Authentication: JWT
-
-### `POST /api/ai/learning-velocity`
-Purpose: Record learning velocity.
-
-Authentication: JWT
-
-### `GET /api/ai/learning-velocity`
-Purpose: Fetch learning velocity history.
-
-Authentication: JWT
-
-### `POST /api/ai/memory/feedback`
-Purpose: Record AI feedback.
-
-Authentication: JWT
-
-### `GET /api/ai/memory/recommendations`
-Purpose: Fetch recommendation history.
-
-Authentication: JWT
-
-## Notes
-- Exact response shapes are defined in the relevant controller/service layers.
-- Some routes have legacy and modern variants to preserve backward compatibility.
+See also:
+- [Authentication Flow](./database/auth-flow.md)
+- [Authorization Guide](./security/authorization.md)
+- [API Changelog](./releases/changelog.md)

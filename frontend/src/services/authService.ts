@@ -8,6 +8,9 @@ export interface LoginInput {
 
 export interface RegisterInput extends LoginInput {
   fullName: string;
+  role?: string;
+  collegeCode?: string;
+  confirmPassword?: string;
 }
 
 export interface AuthConfig {

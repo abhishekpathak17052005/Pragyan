@@ -33,21 +33,36 @@ function getGoogleProfile(profile: GoogleProfile): OAuthUserProfile {
 }
 
 async function fetchGitHubEmail(accessToken: string) {
-  const response = await axios.get<Array<{ email: string; primary?: boolean; verified?: boolean }>>('https://api.github.com/user/emails', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'Pragyan',
-    },
-  });
+  try {
+    console.log('[OAuth:github:fetchEmail] Attempting to fetch GitHub user emails');
+    const response = await axios.get<Array<{ email: string; primary?: boolean; verified?: boolean }>>('https://api.github.com/user/emails', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'Pragyan',
+      },
+    });
 
-  const emails = Array.isArray(response.data) ? response.data : [];
-  const verifiedPrimary = emails.find((entry) => entry.primary && entry.verified && entry.email);
-  const verifiedAny = emails.find((entry) => entry.verified && entry.email);
-  const fallback = emails.find((entry) => entry.email);
+    console.log('[OAuth:github:fetchEmail] Success. Emails count:', response.data?.length || 0);
+    const emails = Array.isArray(response.data) ? response.data : [];
+    const verifiedPrimary = emails.find((entry) => entry.primary && entry.verified && entry.email);
+    const verifiedAny = emails.find((entry) => entry.verified && entry.email);
+    const fallback = emails.find((entry) => entry.email);
 
-  return verifiedPrimary?.email || verifiedAny?.email || fallback?.email || null;
+    const selectedEmail = verifiedPrimary?.email || verifiedAny?.email || fallback?.email || null;
+    console.log('[OAuth:github:fetchEmail] Selected email:', selectedEmail);
+    return selectedEmail;
+  } catch (error) {
+    console.error('❌ GitHub email fetch failed:');
+    console.error('Error type:', error instanceof Error ? error.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    if (error instanceof Error && 'response' in error) {
+      console.error('HTTP status:', (error as any).response?.status);
+      console.error('HTTP data:', (error as any).response?.data);
+    }
+    throw error;
+  }
 }
 
 async function getGitHubProfile(accessToken: string, profile: GitHubProfile): Promise<OAuthUserProfile> {
@@ -130,8 +145,19 @@ export function configurePassport() {
         } as any,
         async (accessToken: string, _refreshToken: string, profile: GitHubProfile, done: (error: Error | null, user?: OAuthUserProfile | false) => void) => {
           try {
+            console.log('[OAuth:github:verify] Starting GitHub profile processing');
+            console.log('[OAuth:github:verify]', {
+              accessTokenReceived: Boolean(accessToken),
+              accessTokenLength: accessToken?.length || 0,
+              profileId: profile.id,
+              profileEmails: profile.emails?.length || 0,
+            });
             done(null, { ...(await getGitHubProfile(accessToken, profile)), accessToken, refreshToken: _refreshToken || null } as any);
           } catch (error) {
+            console.error('❌ GitHub OAuth Error:');
+            console.error('Error type:', error instanceof Error ? error.name : typeof error);
+            console.error('Error message:', error instanceof Error ? error.message : String(error));
+            console.error('Full error:', error);
             done(error as Error);
           }
         }

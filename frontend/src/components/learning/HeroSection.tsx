@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Flame, Zap, Trophy, Calendar, Clock, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { getIconComponent } from '@/lib/iconMap';
 import type { CareerRoadmap } from '@/types/api';
 
 interface HeroSectionProps {
@@ -102,12 +103,30 @@ export const HeroSection = memo(function HeroSection({
               >
                 Learning Path
               </motion.p>
-              <motion.h1
-                variants={itemVariants}
-                className="text-5xl md:text-6xl font-black tracking-tight leading-tight"
-              >
-                {career.title}
-              </motion.h1>
+              
+              {/* Title with Icon */}
+              <div className="flex items-center gap-4">
+                {career.icon && (
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ duration: 0.6, ease: 'backOut' }}
+                    className="p-4 bg-white/20 rounded-2xl backdrop-blur-md border border-white/30"
+                  >
+                    {(() => {
+                      const IconComponent = getIconComponent(career.icon);
+                      return <IconComponent className="w-10 h-10 text-white" />;
+                    })()}
+                  </motion.div>
+                )}
+                <motion.h1
+                  variants={itemVariants}
+                  className="text-5xl md:text-6xl font-black tracking-tight leading-tight"
+                >
+                  {career.title}
+                </motion.h1>
+              </div>
+              
               <motion.p
                 variants={itemVariants}
                 className="text-blue-100 text-lg leading-relaxed max-w-xl font-light"

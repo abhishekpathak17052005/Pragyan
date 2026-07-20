@@ -19,6 +19,318 @@ enum ResourceType {
   OTHER
 }
 
+// ============ RECRUITMENT ENUMS ============
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  FILLED
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  FREELANCE
+  CONTRACT
+}
+
+enum WorkMode {
+  REMOTE
+  ON_SITE
+  HYBRID
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  REJECTED
+  SELECTED
+  ACCEPTED
+  DECLINED
+}
+
+// ============ PHASE 2: AUTHENTICATION ENUMS ============
+
+enum UserRole {
+  ADMIN
+  PLACEMENT_OFFICER
+  RECRUITER
+  STUDENT
+}
+
+enum AccountStatus {
+  EMAIL_PENDING
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum OrganizationType {
+  COLLEGE
+  UNIVERSITY
+  BOOTCAMP
+  TRAINING_INSTITUTE
+  MSME
+  STARTUP
+  COMPANY
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  PASSWORD_RESET
+  EMAIL_VERIFIED
+  INVITATION_CREATED
+  INVITATION_ACCEPTED
+  RECRUITER_VERIFIED
+  RECRUITER_REJECTED
+  USER_SUSPENDED
+  USER_ACTIVE
+}
+
+enum TokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  INVITATION
+  MAGIC_LOGIN
+  EMAIL_CHANGE
+}
+
+enum NotificationType {
+  ACCOUNT_VERIFICATION
+  PASSWORD_RESET
+  INVITATION_RECEIVED
+  INVITATION_ACCEPTED
+  JOB_APPLICATION
+  INTERVIEW_SCHEDULED
+  OFFER_RECEIVED
+}
+
+enum NotificationChannel {
+  DATABASE
+  EMAIL
+  PUSH
+  SMS
+}
+
+// ============ PHASE 2: AUTHENTICATION MODELS ============
+
+model Organization {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  name             String   @unique
+  type             OrganizationType
+  email            String?
+  phone            String?
+  website          String?
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  logo             String?
+  description      String?
+  verified         Boolean  @default(false)
+  isActive         Boolean  @default(true)
+
+  // Relations
+  studentProfiles         StudentProfile[]
+  recruiterProfiles       RecruiterProfile[]
+  placementOfficerProfiles PlacementOfficerProfile[]
+  invitations             Invitation[]
+  auditLogs               AuditLog[]
+  notifications           Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([verified])
+  @@index([isActive])
+}
+
+model Role {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  name             UserRole @unique
+  permissions      String[] @default([])
+  description      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  action           String   @unique
+  resource         String
+  description      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resource])
+}
+
+model StudentProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  rollNumber       String?
+  courseYear       String?
+  branch           String?
+  cgpa             Float?
+  tenthBoard       String?
+  tenthScore       Float?
+  twelfthBoard     String?
+  twelfthScore     Float?
+  resumeUrl        String?
+  linkedinUrl      String?
+  githubUrl        String?
+  skills           String[] @default([])
+  interests        String[] @default([])
+  experiences      String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model RecruiterProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  companyName      String
+  designation      String
+  department       String?
+  verified         Boolean  @default(false)
+  verifiedAt       DateTime?
+  verificationNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([verified])
+}
+
+model PlacementOfficerProfile {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @unique @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  designation      String
+  department       String?
+  officePhone      String?
+  verified         Boolean  @default(false)
+  verifiedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([verified])
+}
+
+model Invitation {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  email            String
+  role             UserRole
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  invitedByUserId  String   @db.ObjectId
+  invitedByUser    User     @relation("invitedBy", fields: [invitedByUserId], references: [id])
+  
+  acceptedByUserId String?  @db.ObjectId
+  acceptedByUser   User?    @relation("invitedUser", fields: [acceptedByUserId], references: [id])
+  
+  token            String   @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  status           String   @default("PENDING")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, organizationId, role])
+  @@index([organizationId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  targetUserId     String   @db.ObjectId
+  targetUser       User     @relation("auditLogTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  
+  performedByUserId String  @db.ObjectId
+  performedByUser  User     @relation("auditLogPerformedBy", fields: [performedByUserId], references: [id], onDelete: Cascade)
+  
+  organizationId   String?  @db.ObjectId
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  
+  action           AuditAction
+  status           String   @default("SUCCESS")
+  failureReason    String?                       // Structured failure reason (USER_NOT_FOUND, EMAIL_NOT_VERIFIED, etc.)
+  
+  resourceType     String?
+  resourceId       String?
+  changes          Json?
+  ipAddress        String?
+  userAgent        String?
+
+  createdAt DateTime @default(now())
+
+  @@index([targetUserId])
+  @@index([performedByUserId])
+  @@index([organizationId])
+  @@index([action])
+  @@index([status])
+  @@index([failureReason])
+  @@index([createdAt])
+}
+
+model Notification {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @db.ObjectId
+  user             User     @relation("notifications", fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String   @db.ObjectId
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  type             NotificationType
+  title            String
+  message          String
+  channels         NotificationChannel[]
+  
+  read             Boolean  @default(false)
+  readAt           DateTime?
+  
+  sentViaEmail     Boolean  @default(false)
+  sentViaPush      Boolean  @default(false)
+  sentViaSMS       Boolean  @default(false)
+  
+  metadata         Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([type])
+  @@index([read])
+  @@index([createdAt])
+}
+
 // ============ USER MODELS ============
 
 model User {
@@ -29,8 +341,25 @@ model User {
   provider         String   @default("local")
   providerId       String?
   avatar           String?
+  profilePicture   String?
   emailVerified    Boolean  @default(false)
   role             String   @default("USER")
+  
+  // Phase 2: Authentication fields
+  userRole         UserRole?
+  accountStatus    AccountStatus @default(EMAIL_PENDING)
+  emailVerifiedAt  DateTime?
+  status           AccountStatus @default(EMAIL_PENDING)
+  lastLoginAt      DateTime?
+  lastLoginIp      String?                // Last login IP address
+  lastLoginUserAgent String?              // Last login user agent
+  organizationId   String?  @db.ObjectId
+  isActive         Boolean  @default(true)
+  
+  // OAuth fields
+  oauthProvider    String?  // "google" or "github"
+  oauthProviderId  String?
+  
   age              Int?
   location         String?
   phone            String?
@@ -89,11 +418,26 @@ model User {
   learningVelocities      LearningVelocity[]
   decisionSnapshots       DecisionSnapshot[]
   generatedNotes          GeneratedNote[]
+  
+  // Phase 2: Auth relations
+  verificationTokens     VerificationToken[]
+  studentProfile         StudentProfile?
+  recruiterProfile       RecruiterProfile?
+  placementOfficerProfile PlacementOfficerProfile?
+  invitationsReceived    Invitation[] @relation("invitedUser")
+  invitationsSent        Invitation[] @relation("invitedBy")
+  auditLogsTarget        AuditLog[] @relation("auditLogTarget")
+  auditLogsPerformedBy   AuditLog[] @relation("auditLogPerformedBy")
+  notifications          Notification[] @relation("notifications")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([provider, providerId])
+  @@index([userRole])
+  @@index([accountStatus])
+  @@index([isActive])
+  @@index([organizationId])
 }
 
 // Intelligence debug audit logs for admin access to sensitive intelligence payloads
@@ -190,14 +534,44 @@ model UserCertification {
 
 model RefreshToken {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  token     String   @unique
+  tokenHash String?                       // SHA256(rawToken), never store raw token
+  familyId  String?                       // Session family ID for token rotation tracking
   userId    String   @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
+  expiresAt DateTime?
+  revokedAt DateTime?                     // Non-null = token revoked (security incident)
+  
+  // Device metadata for multi-device logout and security
+  deviceId  String?                       // Device/browser fingerprint
+  ipAddress String?                       // IP at login time
+  userAgent String?                       // User-Agent at login time
+  lastUsedAt DateTime?                    // Last refresh time
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([tokenHash])                    // Index only, not unique (handles NULLs)
   @@index([userId])
+  @@index([familyId])                     // For revoking entire family
+  @@index([expiresAt])                    // For cleanup queries
+  @@index([revokedAt])                    // For security queries
+}
+
+model VerificationToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String?
+  purpose   TokenPurpose @default(EMAIL_VERIFY)
+  expiresAt DateTime?
+  usedAt    DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tokenHash])                    // Index, not unique (handles NULLs)
+  @@index([userId])
+  @@index([purpose])
 }
 
 model SecurityLog {
@@ -1343,8 +1717,30 @@ model Company {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Relations
+  hiringDrives   HiringDrive[]
+
   @@index([ownerRecruiterId])
   @@index([name])
+}
+
+model HiringDrive {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  companyId            String   @db.ObjectId
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title                String
+  description          String?
+  collegeId            String?  @db.ObjectId
+  driveDate            DateTime
+  venue                String?
+  mode                 WorkMode @default(ON_SITE)
+  registrationDeadline DateTime?
+  status               String   @default("UPCOMING")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([driveDate])
 }
 
 model RecruiterJob {
