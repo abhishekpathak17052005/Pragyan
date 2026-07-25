@@ -138,8 +138,8 @@ export default function Roadmap() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-950 dark:via-blue-950 dark:to-slate-900">
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-950 dark:via-blue-950 dark:to-slate-900 overflow-x-hidden">
+      <div className="w-full mx-auto space-y-8">
         
         {/* Hero Section */}
         {hasRoadmap && career && (
@@ -178,9 +178,9 @@ export default function Roadmap() {
 
         {/* Main Content Grid */}
         {hasRoadmap && career?.modules ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-4">
             {/* Journey Timeline - Main Content */}
-            <div className="lg:col-span-3">
+            <div className="col-span-1 md:col-span-2 lg:col-span-3 w-full">
               <JourneyTimeline
                 career={career}
                 onLessonClick={(lessonId) => {
@@ -191,18 +191,20 @@ export default function Roadmap() {
             </div>
 
             {/* Progress Sidebar */}
-            <ProgressSidebar
-              currentLevel={Math.floor(stats.xp / 1000) + 1}
-              totalXp={stats.xp}
-              streak={stats.streak}
-              currentWeek={Math.ceil(stats.topics / 7) || 1}
-              currentDay={Math.ceil((stats.topics % 7) || 1)}
-              dailyGoal={{ lessons: 1, xp: 100 }}
-              achievements={[
-                { id: '1', title: 'First Steps', icon: '🚀', unlockedAt: new Date() },
-                { id: '2', title: 'Week One', icon: '⭐', unlockedAt: new Date(Date.now() - 86400000) },
-              ]}
-            />
+            <div className="col-span-1 w-full">
+              <ProgressSidebar
+                currentLevel={Math.floor(stats.xp / 1000) + 1}
+                totalXp={stats.xp}
+                streak={stats.streak}
+                currentWeek={Math.ceil(stats.topics / 7) || 1}
+                currentDay={Math.ceil((stats.topics % 7) || 1)}
+                dailyGoal={{ lessons: 1, xp: 100 }}
+                achievements={[
+                  { id: '1', title: 'First Steps', icon: '🚀', unlockedAt: new Date() },
+                  { id: '2', title: 'Week One', icon: '⭐', unlockedAt: new Date(Date.now() - 86400000) },
+                ]}
+              />
+            </div>
           </div>
         ) : (
           <motion.div

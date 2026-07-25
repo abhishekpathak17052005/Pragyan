@@ -59,7 +59,7 @@ export const ProgressSidebar = memo(function ProgressSidebar({
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="hidden lg:flex flex-col gap-4 w-80"
+      className="hidden lg:flex flex-col gap-4 w-full"
     >
       {/* Level & XP */}
       <motion.div
