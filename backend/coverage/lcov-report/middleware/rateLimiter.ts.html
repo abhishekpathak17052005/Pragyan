@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">22.58% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>7/31</span>
+                <span class='fraction'>0/31</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">16.66% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/12</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">23.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>7/30</span>
+                <span class='fraction'>0/30</span>
             </div>
         
             
@@ -123,33 +123,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -158,6 +133,31 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,7 +168,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Request, Response, NextFunction } from 'express';
 &nbsp;
 interface Bucket {
@@ -176,19 +176,19 @@ interface Bucket {
   lastRefill: number;
 }
 &nbsp;
-const buckets = new Map&lt;string, Bucket&gt;();
+const buckets = <span class="cstat-no" title="statement not covered" >new Map&lt;string, Bucket&gt;();</span>
 &nbsp;
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const MAX_TOKENS = isDevelopment ? 200 : <span class="branch-1 cbranch-no" title="branch not covered" >10;</span> // requests for anonymous
-const MAX_TOKENS_AUTH = isDevelopment ? 600 : <span class="branch-1 cbranch-no" title="branch not covered" >60;</span> // requests for authenticated users
-const REFILL_INTERVAL_MS = 60 * 1000; // refill per minute
+const isDevelopment = <span class="cstat-no" title="statement not covered" >process.env.NODE_ENV !== 'production';</span>
+const MAX_TOKENS = <span class="cstat-no" title="statement not covered" >isDevelopment ? 200 : 10;</span> // requests for anonymous
+const MAX_TOKENS_AUTH = <span class="cstat-no" title="statement not covered" >isDevelopment ? 600 : 60;</span> // requests for authenticated users
+const REFILL_INTERVAL_MS = <span class="cstat-no" title="statement not covered" >60 * 1000;</span> // refill per minute
 &nbsp;
 function <span class="fstat-no" title="function not covered" >getKey(</span>req: Request) {
 <span class="cstat-no" title="statement not covered" >  <span class="missing-if-branch" title="if path not taken" >I</span>if ((req as any).user?.id) <span class="cstat-no" title="statement not covered" >return `user:${(req as any).user.id}`;</span></span>
 <span class="cstat-no" title="statement not covered" >  return `ip:${req.ip}`;</span>
 }
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >rateLimiter(</span>req: Request, res: Response, next: NextFunction) {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >r</span>ateLimiter(</span>req: Request, res: Response, next: NextFunction) {
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const key = <span class="cstat-no" title="statement not covered" >getKey(req);</span>
     const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
@@ -221,7 +221,7 @@ export function <span class="fstat-no" title="function not covered" >rateLimiter
   }
 }
 &nbsp;
-export default rateLimiter;
+<span class="cstat-no" title="statement not covered" >export default rateLimiter;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -229,7 +229,7 @@ export default rateLimiter;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-10T14:17:58.688Z
+                at 2026-07-25T12:04:53.648Z
             </div>
         <script src="../prettify.js"></script>
         <script>

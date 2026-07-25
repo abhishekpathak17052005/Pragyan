@@ -18,6 +18,13 @@ import Home from "@/pages/home";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Assessments = lazy(() => import("@/pages/assessments"));
+const AssessmentPhase1 = lazy(() => import("@/pages/assessment-phase1"));
+const AssessmentPhase2 = lazy(() => import("@/pages/assessment-phase2"));
+const AssessmentPhase3 = lazy(() => import("@/pages/assessment-phase3"));
+const AssessmentPhase4 = lazy(() => import("@/pages/assessment-phase4"));
+const AssessmentPhase5 = lazy(() => import("@/pages/assessment-phase5"));
+const AssessmentPhase6 = lazy(() => import("@/pages/assessment-phase6"));
+const AssessmentPhase7 = lazy(() => import("@/pages/assessment-phase7"));
 const Resources = lazy(() => import("@/pages/resources"));
 const Certificates = lazy(() => import("@/pages/certificates"));
 const Profile = lazy(() => import("@/pages/profile"));
@@ -27,6 +34,9 @@ const EditInformation = lazy(() => import("@/pages/edit-information"));
 const CareerReadiness = lazy(() => import("@/pages/career-readiness"));
 const Roadmap = lazy(() => import("@/pages/roadmap"));
 const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
+const Discovery = lazy(() => import("@/pages/discovery"));
+const InterestDiscovery = lazy(() => import("@/pages/interest-discovery"));
+const CapabilityDiscovery = lazy(() => import("@/pages/capability-discovery"));
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
 const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-final"));
 const AdminDashboard = lazy(() => import("@/pages/admin-dashboard"));
@@ -103,6 +113,41 @@ function Router() {
                     <Assessments />
                   </StudentRoute>
                 </Route>
+                <Route path="/assessment/phase-1">
+                  <StudentRoute>
+                    <AssessmentPhase1 />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/phase-2">
+                  <StudentRoute>
+                    <AssessmentPhase2 />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/phase-3">
+                  <StudentRoute>
+                    <AssessmentPhase3 />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/phase-4">
+                  <StudentRoute>
+                    <AssessmentPhase4 />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/phase-5">
+                  <StudentRoute>
+                    <AssessmentPhase5 />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/phase-6">
+                  <StudentRoute>
+                    <AssessmentPhase6 />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/phase-7">
+                  <StudentRoute>
+                    <AssessmentPhase7 />
+                  </StudentRoute>
+                </Route>
                 <Route path="/resources">
                   <StudentRoute>
                     <Resources />
@@ -116,6 +161,21 @@ function Router() {
                 <Route path="/information/career-readiness">
                   <StudentRoute>
                     <CareerReadiness />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/discovery">
+                  <StudentRoute>
+                    <Discovery />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/interest">
+                  <StudentRoute>
+                    <InterestDiscovery />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment/capability">
+                  <StudentRoute>
+                    <CapabilityDiscovery />
                   </StudentRoute>
                 </Route>
                 <Route path="/career-discovery">

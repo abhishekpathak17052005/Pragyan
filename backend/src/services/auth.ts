@@ -50,6 +50,26 @@ const userProfileSelect = {
   currentCourse: true,
   cgpa: true,
   xp: true,
+  // Phase 1 profile fields
+  gender: true,
+  country: true,
+  state: true,
+  city: true,
+  firstName: true,
+  lastName: true,
+  currentStatus: true,
+  collegeName: true,
+  university: true,
+  degree: true,
+  branch: true,
+  currentYear: true,
+  expectedGraduationYear: true,
+  programmingExperience: true,
+  previouslyWorked: true,
+  yearsOfExperience: true,
+  currentCompany: true,
+  currentRole: true,
+  careerGoal: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -935,29 +955,44 @@ export class AuthService {
   }
 
   async updateUserProfile(userId: string, input: ProfileUpdateInput) {
-    const data: ProfileUpdateInput = {
-      ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
-      ...(input.age !== undefined ? { age: input.age } : {}),
-      ...(input.location !== undefined ? { location: input.location } : {}),
-      ...(input.phone !== undefined ? { phone: input.phone } : {}),
-      ...(input.linkedin !== undefined ? { linkedin: input.linkedin } : {}),
-      ...(input.skills !== undefined ? { skills: input.skills } : {}),
-      ...(input.interests !== undefined ? { interests: input.interests } : {}),
-      ...(input.preferences !== undefined ? { preferences: input.preferences } : {}),
-      ...(input.educationEntries !== undefined ? { educationEntries: input.educationEntries } : {}),
-      ...(input.experience !== undefined ? { experience: input.experience } : {}),
-      ...(input.experienceType !== undefined ? { experienceType: input.experienceType } : {}),
-      ...(input.education !== undefined ? { education: input.education } : {}),
-      ...(input.skillLevel !== undefined ? { skillLevel: input.skillLevel } : {}),
-      ...(input.currentTitle !== undefined ? { currentTitle: input.currentTitle } : {}),
-      ...(input.careerTrack !== undefined ? { careerTrack: input.careerTrack } : {}),
-      ...(input.tenthBoard !== undefined ? { tenthBoard: input.tenthBoard } : {}),
-      ...(input.tenthScore !== undefined ? { tenthScore: input.tenthScore } : {}),
-      ...(input.twelfthBoard !== undefined ? { twelfthBoard: input.twelfthBoard } : {}),
-      ...(input.twelfthScore !== undefined ? { twelfthScore: input.twelfthScore } : {}),
-      ...(input.currentCourse !== undefined ? { currentCourse: input.currentCourse } : {}),
-      ...(input.cgpa !== undefined ? { cgpa: input.cgpa } : {}),
-    };
+    // Build update data from all known profile fields including Phase 1
+    const data: Record<string, unknown> = {};
+
+    const scalar: (keyof ProfileUpdateInput)[] = [
+      'fullName', 'age', 'location', 'phone', 'linkedin', 'experience',
+      'experienceType', 'education', 'skillLevel', 'currentTitle', 'careerTrack',
+      'tenthBoard', 'tenthScore', 'twelfthBoard', 'twelfthScore',
+      'currentCourse', 'cgpa', 'avatar',
+      // Phase 1 fields
+      'gender', 'country', 'state', 'city', 'firstName', 'lastName',
+      'currentStatus', 'collegeName', 'university', 'degree', 'branch',
+      'currentYear', 'expectedGraduationYear', 'programmingExperience',
+      'previouslyWorked', 'yearsOfExperience', 'currentCompany', 'currentRole',
+      'careerGoal',
+    ];
+
+    for (const key of scalar) {
+      if ((input as any)[key] !== undefined) {
+        data[key] = (input as any)[key];
+      }
+    }
+
+    // Array fields
+    if (input.skills !== undefined)           data.skills = input.skills;
+    if (input.interests !== undefined)        data.interests = input.interests;
+    if (input.preferences !== undefined)      data.preferences = input.preferences;
+    if (input.educationEntries !== undefined) data.educationEntries = input.educationEntries;
+
+    // Derive fullName from firstName + lastName if fullName not explicitly provided
+    if (!data.fullName && (data.firstName || data.lastName)) {
+      const existing = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true, fullName: true },
+      });
+      const first = String(data.firstName ?? existing?.firstName ?? '').trim();
+      const last  = String(data.lastName  ?? existing?.lastName  ?? '').trim();
+      if (first || last) data.fullName = `${first} ${last}`.trim();
+    }
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestError('At least one profile field is required');
@@ -966,112 +1001,60 @@ export class AuthService {
     try {
       const updated = await prisma.user.update({
         where: { id: userId },
-        data: {
-          ...data,
-          updatedAt: new Date(),
-        } as any,
+        data: { ...data, updatedAt: new Date() } as any,
         select: {
-          id: true,
-          fullName: true,
-          email: true,
-          avatar: true,
-          role: true,
-          age: true,
-          location: true,
-          phone: true,
-          linkedin: true,
-          skills: true,
-          interests: true,
-          preferences: true,
-          experience: true,
-          experienceType: true,
-          education: true,
-          skillLevel: true,
-          currentTitle: true,
-          careerTrack: true,
-          tenthBoard: true,
-          tenthScore: true,
-          twelfthBoard: true,
-          twelfthScore: true,
-          currentCourse: true,
-          cgpa: true,
-          xp: true,
-          createdAt: true,
-          updatedAt: true,
+          id: true, fullName: true, email: true, avatar: true, role: true,
+          age: true, location: true, phone: true, linkedin: true,
+          skills: true, interests: true, preferences: true,
+          experience: true, experienceType: true, education: true,
+          skillLevel: true, currentTitle: true, careerTrack: true,
+          tenthBoard: true, tenthScore: true, twelfthBoard: true, twelfthScore: true,
+          currentCourse: true, cgpa: true, xp: true,
+          gender: true, country: true, state: true, city: true,
+          firstName: true, lastName: true, currentStatus: true,
+          collegeName: true, university: true, degree: true, branch: true,
+          currentYear: true, expectedGraduationYear: true,
+          programmingExperience: true, previouslyWorked: true,
+          yearsOfExperience: true, currentCompany: true, currentRole: true,
+          careerGoal: true,
+          createdAt: true, updatedAt: true,
         },
       });
 
       // Non-blocking snapshot upsert
-      try {
-        await this.upsertCurrentUserSnapshot(
-          {
-            _id: new ObjectId(updated.id),
-            email: updated.email,
-            fullName: updated.fullName,
-            role: updated.role,
-            age: updated.age ?? null,
-            location: updated.location ?? null,
-            phone: updated.phone ?? null,
-            linkedin: updated.linkedin ?? null,
-            skills: Array.isArray(updated.skills) ? updated.skills : [],
-            interests: Array.isArray(updated.interests) ? updated.interests : [],
-            preferences: Array.isArray(updated.preferences) ? updated.preferences : [],
-            experience: updated.experience ?? null,
-            experienceType: updated.experienceType ?? null,
-            education: updated.education ?? null,
-            educationEntries: [],
-            skillLevel: updated.skillLevel ?? null,
-            currentTitle: updated.currentTitle ?? null,
-            careerTrack: updated.careerTrack ?? null,
-            xp: updated.xp ?? 0,
-            streak: 0,
-            createdAt: updated.createdAt ?? new Date(),
-            updatedAt: updated.updatedAt ?? new Date(),
-          } as any,
-          true,
-          new Date()
-        );
-      } catch (snapshotErr) {
-        console.warn('Non-blocking snapshot upsert failed during profile update:', (snapshotErr as any)?.message || snapshotErr);
-      }
-
-      // Invalidate aggregated AI context for this user so AI sees latest profile
-      try {
-        const { contextAggregator } = await import('@/services/contextAggregator');
-        void contextAggregator.invalidate(userId).catch(() => undefined);
-      } catch (e) {
-        // ignore
-      }
-
-      return {
-        id: updated.id,
-        fullName: updated.fullName,
+      void this.upsertCurrentUserSnapshot({
+        _id: new ObjectId(updated.id),
         email: updated.email,
-        avatar: updated.avatar,
+        fullName: updated.fullName,
         role: updated.role,
-        age: updated.age,
-        location: updated.location,
-        phone: updated.phone,
-        linkedin: updated.linkedin,
+        age: updated.age ?? null,
+        location: updated.location ?? null,
+        phone: updated.phone ?? null,
+        linkedin: updated.linkedin ?? null,
         skills: Array.isArray(updated.skills) ? updated.skills : [],
         interests: Array.isArray(updated.interests) ? updated.interests : [],
         preferences: Array.isArray(updated.preferences) ? updated.preferences : [],
-        experience: updated.experience,
-        experienceType: updated.experienceType,
-        education: updated.education,
-        skillLevel: updated.skillLevel,
-        currentTitle: updated.currentTitle,
-        careerTrack: updated.careerTrack,
-        tenthBoard: updated.tenthBoard,
-        tenthScore: updated.tenthScore,
-        twelfthBoard: updated.twelfthBoard,
-        twelfthScore: updated.twelfthScore,
-        currentCourse: updated.currentCourse,
-        cgpa: updated.cgpa,
-        xp: updated.xp,
-        createdAt: updated.createdAt,
-        updatedAt: updated.updatedAt,
-      };
+        experience: updated.experience ?? null,
+        experienceType: updated.experienceType ?? null,
+        education: updated.education ?? null,
+        educationEntries: [],
+        skillLevel: updated.skillLevel ?? null,
+        currentTitle: updated.currentTitle ?? null,
+        careerTrack: updated.careerTrack ?? null,
+        xp: updated.xp ?? 0,
+        streak: 0,
+        createdAt: updated.createdAt ?? new Date(),
+        updatedAt: updated.updatedAt ?? new Date(),
+      } as any, true, new Date()).catch((e: unknown) =>
+        console.warn('[updateUserProfile] snapshot upsert failed:', (e as any)?.message)
+      );
+
+      // Invalidate AI context cache
+      void import('@/services/contextAggregator')
+        .then(({ contextAggregator }) => contextAggregator.invalidate(userId))
+        .catch(() => undefined);
+
+      return { ...updated, skills: Array.isArray(updated.skills) ? updated.skills : [] };
     } catch (err) {
       if (err instanceof Error && err.message.includes('not found')) {
         throw new NotFoundError('User not found');

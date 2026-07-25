@@ -12,7 +12,8 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
-const backendUrl = process.env.VITE_BACKEND_URL ?? "http://localhost:3000";
+const rawBackendUrl = process.env.VITE_BACKEND_URL ?? process.env.VITE_API_URL ?? "http://localhost:3000";
+const backendUrl = rawBackendUrl.replace(/\/api\/?$/, "");
 
 export default defineConfig({
   base: basePath,

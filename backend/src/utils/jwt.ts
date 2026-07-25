@@ -3,7 +3,7 @@
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { config } from '@/config/env';
-import { JwtPayload } from '@/types';
+import type { JwtPayload } from '@/types';
 
 /**
  * JWT versioning for forward compatibility
@@ -12,12 +12,23 @@ import { JwtPayload } from '@/types';
  */
 const JWT_VERSION = 1;
 
-export const generateAccessToken = (payload: Omit<JwtPayload, 'iat' | 'exp'>): string => {
+type AccessTokenPayload = {
+  id?: string;
+  userId?: string;
+  email: string;
+  role: JwtPayload['role'];
+};
+
+export const generateAccessToken = (payload: AccessTokenPayload): string => {
+  const normalizedPayload = {
+    ...payload,
+    userId: payload.userId ?? payload.id,
+    id: payload.id ?? payload.userId,
+    ver: JWT_VERSION,
+  };
+
   return jwt.sign(
-    {
-      ...payload,
-      ver: JWT_VERSION,  // Add version to payload
-    },
+    normalizedPayload,
     config.jwt.secret,
     {
       expiresIn: config.jwt.expiry as jwt.SignOptions['expiresIn'],

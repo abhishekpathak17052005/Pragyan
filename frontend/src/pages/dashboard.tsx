@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { 
   Flame, Zap, BookOpen, ArrowRight, 
-  ChevronRight, Target, AlertCircle
+  ChevronRight, Target, AlertCircle, Sparkles, TrendingUp, Brain, CheckCircle2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { careerRoadmapService } from "@/services/careerRoadmapService";
+import { csvCareerService } from "@/services/csvCareerService";
+import { assessmentService } from "@/services/assessmentService";
 import { findNextIncompleteResource } from "@/services/nextResourceService";
 import { 
   DashboardHeaderSkeleton, 
@@ -34,6 +36,33 @@ export default function Dashboard() {
     retry: false,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
+  });
+
+  // Fetch CSV career recommendations
+  const { data: csvRecommendations } = useQuery({
+    queryKey: ["csv-careers", "top"],
+    queryFn: () => csvCareerService.getTopRecommendation(),
+    retry: false,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Check if user has completed adaptive assessment
+  const [latestAssessmentId, setLatestAssessmentId] = useState<string | null>(() => {
+    // Try to read from localStorage
+    try {
+      return localStorage.getItem('pragyan_latest_assessment_id');
+    } catch {
+      return null;
+    }
+  });
+
+  // Fetch latest assessment result if available
+  const { data: assessmentResult } = useQuery({
+    queryKey: ["assessment-result", latestAssessmentId],
+    queryFn: () => latestAssessmentId ? assessmentService.getAdaptiveResult(latestAssessmentId) : null,
+    enabled: !!latestAssessmentId,
+    retry: false,
+    staleTime: 1000 * 60 * 10,
   });
 
   // Also fetch the roadmap with progress to find next resource
@@ -247,6 +276,183 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
+
+            {/* Assessment Status Widget */}
+            {!assessmentResult ? (
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl border border-purple-200 shadow-sm p-8">
+                <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-purple-600" />
+                  Career Assessment
+                </h2>
+                
+                <div className="bg-white rounded-xl p-6 border border-purple-200">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                      <Target className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-bold text-slate-900 mb-1">
+                        Discover Your Perfect Career Path
+                      </h3>
+                      <p className="text-sm text-slate-600">
+                        Take our adaptive assessment to get personalized career recommendations
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>Only 6-10 adaptive questions</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>Real-time confidence scoring</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>Trait-based career matching</span>
+                    </div>
+                  </div>
+
+                  <Link href="/assessments">
+                    <Button className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                      Start Assessment
+                      <Sparkles className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 shadow-sm p-8">
+                <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-green-600" />
+                  Assessment Completed
+                </h2>
+                
+                <div className="bg-white rounded-xl p-6 border border-green-200">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <h3 className="text-base font-bold text-slate-900">Assessment Complete!</h3>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-1">
+                        Confidence: <span className="font-bold text-green-600">
+                          {Math.round((assessmentResult.confidence || 0) * 100)}%
+                        </span>
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {assessmentResult.topMatches?.length || 0} career matches found
+                      </p>
+                    </div>
+                  </div>
+
+                  {assessmentResult.topMatches && assessmentResult.topMatches[0] && (
+                    <div className="bg-slate-50 rounded-lg p-4 mb-4 border border-slate-200">
+                      <p className="text-xs text-slate-600 mb-1">Top Match:</p>
+                      <p className="text-base font-bold text-slate-900 mb-2">
+                        {assessmentResult.topMatches[0].career}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-green-200 rounded-full h-2">
+                          <div 
+                            className="bg-green-600 h-2 rounded-full"
+                            style={{ width: `${Math.round(assessmentResult.topMatches[0].score)}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold text-green-600">
+                          {Math.round(assessmentResult.topMatches[0].score)}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link href="/career-discovery?tab=adaptive">
+                      <Button className="w-full rounded-xl bg-green-600 hover:bg-green-700 text-white gap-2 text-sm py-2">
+                        View Matches
+                        <TrendingUp className="w-3 h-3" />
+                      </Button>
+                    </Link>
+                    <Link href="/assessments">
+                      <Button variant="outline" className="w-full rounded-xl gap-2 text-sm py-2">
+                        Retake
+                        <ArrowRight className="w-3 h-3" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Career Recommendations Card */}
+            {csvRecommendations && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 shadow-sm p-8">
+                <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                  Top Career Match
+                </h2>
+                
+                <div className="bg-white rounded-xl p-6 border border-blue-200">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-slate-900 mb-1">{csvRecommendations.careerTitle}</h3>
+                      <p className="text-sm text-slate-600">{csvRecommendations.recommendationReason[0] || "Based on your assessment"}</p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="text-3xl font-bold text-blue-600">{Math.round(csvRecommendations.overallScore)}%</div>
+                      <p className="text-xs text-slate-600">Match</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-4">
+                    {csvRecommendations.matchedSkills.length > 0 && (
+                      <div>
+                        <p className="text-xs text-slate-600 mb-2 font-medium">Your Skills:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {csvRecommendations.matchedSkills.slice(0, 4).map((skill) => (
+                            <span key={skill} className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                          {csvRecommendations.matchedSkills.length > 4 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                              +{csvRecommendations.matchedSkills.length - 4}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {csvRecommendations.missingSkills.length > 0 && (
+                      <div>
+                        <p className="text-xs text-slate-600 mb-2 font-medium">To Learn:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {csvRecommendations.missingSkills.slice(0, 3).map((skill) => (
+                            <span key={skill} className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                          {csvRecommendations.missingSkills.length > 3 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                              +{csvRecommendations.missingSkills.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Link href="/career-discovery">
+                    <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                      Explore All Matches
+                      <TrendingUp className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Gamification Stats */}
