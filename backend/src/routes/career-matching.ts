@@ -21,4 +21,7 @@ router.get('/careers', careerMatchingController.getAllCareers);
 // Get career details
 router.get('/careers/:careerId', careerMatchingController.getCareerDetails);
 
+// Get hybrid matching statistics
+router.get('/hybrid/statistics', careerMatchingController.getHybridStatistics);
+
 export default router;

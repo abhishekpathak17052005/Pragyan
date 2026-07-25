@@ -83,6 +83,28 @@ export const DOMAIN_QUESTION_BANK: Record<string, DomainQuestion[]> = {
     { id: 'gen-career', domain: 'general', skill: 'Career Clarity', question: 'Rate how clearly you understand your preferred career direction.', type: 'rating' },
     { id: 'gen-portfolio', domain: 'general', skill: 'Portfolio Building', question: 'Rate your ability to show your skills through projects, writing, or proof of work.', type: 'rating' },
   ],
+  'skills-discovery': [
+    { id: 'skills-realized-interpretation', domain: 'skills-discovery', skill: 'Realized Strengths Interpretation', question: 'Rate how well you interpret what your realized strengths mean for your career goals.', type: 'rating' },
+    { id: 'skills-realized-pride', domain: 'skills-discovery', skill: 'Realized Strengths Pride', question: 'Rate how proud you are of the strengths you already use regularly.', type: 'rating' },
+    { id: 'skills-realized-meaning', domain: 'skills-discovery', skill: 'Realized Strengths Meaning', question: 'Rate how clearly you can identify which strength holds the most meaning for you.', type: 'rating' },
+    { id: 'skills-realized-application', domain: 'skills-discovery', skill: 'Strength Application', question: 'Rate how consistently you apply your strongest strengths in academics or work.', type: 'rating' },
+    { id: 'skills-realized-overuse', domain: 'skills-discovery', skill: 'Strength Overuse Awareness', question: 'Rate how aware you are when a strength becomes overused or imbalanced.', type: 'rating' },
+    { id: 'skills-unrealized-view', domain: 'skills-discovery', skill: 'Unrealized Strengths View', question: 'Rate how well you can identify unrealized strengths that could become more visible.', type: 'rating' },
+    { id: 'skills-unrealized-development', domain: 'skills-discovery', skill: 'Unrealized Strengths Development', question: 'Rate how ready you are to develop your unrealized strengths further.', type: 'rating' },
+    { id: 'skills-unrealized-integration', domain: 'skills-discovery', skill: 'Unrealized Strengths Integration', question: 'Rate how easily you can incorporate unrealized strengths into daily life or work.', type: 'rating' },
+    { id: 'skills-unrealized-careerfit', domain: 'skills-discovery', skill: 'Unrealized Strengths Career Fit', question: 'Rate how well you can match unrealized strengths to future career goals.', type: 'rating' },
+    { id: 'skills-unrealized-mentorship', domain: 'skills-discovery', skill: 'Unrealized Strengths Mentorship', question: 'Rate how likely you are to learn from someone who has already realized this strength.', type: 'rating' },
+    { id: 'skills-learned-perspective', domain: 'skills-discovery', skill: 'Learned Skills Perspective', question: 'Rate how well you understand which learned skills you use versus which drain you.', type: 'rating' },
+    { id: 'skills-learned-overuse', domain: 'skills-discovery', skill: 'Learned Skills Overuse', question: 'Rate how often learned skills feel overused or exhausting.', type: 'rating' },
+    { id: 'skills-learned-recharge', domain: 'skills-discovery', skill: 'Learned Skills Recharge', question: 'Rate how effectively you re-energize yourself when using learned skills.', type: 'rating' },
+    { id: 'skills-learned-balance', domain: 'skills-discovery', skill: 'Learned Skills Balance', question: 'Rate how well you balance relying on learned skills with developing new strengths.', type: 'rating' },
+    { id: 'skills-learned-support', domain: 'skills-discovery', skill: 'Learned Skills Support', question: 'Rate how strong your support network is for managing learned skills.', type: 'rating' },
+    { id: 'skills-weakness-perception', domain: 'skills-discovery', skill: 'Weakness Perception', question: 'Rate how clearly you perceive your weaknesses and their effect on goals.', type: 'rating' },
+    { id: 'skills-weakness-impact', domain: 'skills-discovery', skill: 'Weakness Impact', question: 'Rate how much your weaknesses affect your career aspirations or choices.', type: 'rating' },
+    { id: 'skills-weakness-compensation', domain: 'skills-discovery', skill: 'Weakness Compensation', question: 'Rate how well you use strengths to compensate for your weaknesses.', type: 'rating' },
+    { id: 'skills-weakness-guidance', domain: 'skills-discovery', skill: 'Weakness Guidance', question: 'Rate how likely you are to seek guidance from someone stronger in your weakness area.', type: 'rating' },
+    { id: 'skills-weakness-mitigation', domain: 'skills-discovery', skill: 'Weakness Mitigation', question: 'Rate how clear your plan is to prevent weaknesses from blocking your goals.', type: 'rating' },
+  ],
 };
 
 export function getDomainQuestions(domain: string): DomainQuestion[] {

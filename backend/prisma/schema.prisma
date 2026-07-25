@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -383,6 +383,26 @@ model User {
   level            Int      @default(1)
   currentTitle     String?
   careerTrack      String?
+  // â”€â”€ Phase 1 profile fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  gender                  String?
+  firstName               String?
+  lastName                String?
+  country                 String?
+  state                   String?
+  city                    String?
+  currentStatus           String?
+  collegeName             String?
+  university              String?
+  degree                  String?
+  branch                  String?
+  currentYear             String?
+  expectedGraduationYear  Int?
+  programmingExperience   String?
+  previouslyWorked        Boolean? @default(false)
+  yearsOfExperience       Float?
+  currentCompany          String?
+  currentRole             String?
+  careerGoal              String?
 
   // Relations
   refreshTokens           RefreshToken[]
@@ -406,6 +426,10 @@ model User {
   taskProgress            TaskProgress[]
   resourceLearningHistory  ResourceLearningHistory[]
   careerMatches           CareerMatch[]
+  csvCareerMatches        CSVCareerMatch[]
+  careerRecommendationSnapshots CareerRecommendationSnapshot[]
+  skillGapAnalyses        SkillGapAnalysis[]
+  careerPerformanceScore  CareerPerformanceScore?
   jobApplications         JobApplication[]
   dailyAnalyticsSnapshots  DailyAnalyticsSnapshot[]
   userResourceProgress    UserResourceProgress[]
@@ -1103,6 +1127,7 @@ model AssessmentSession {
   answers         String
   selectedOptions String[]
   analysis        String
+  phase           Int?     // 1 = Profile Collection, 2 = Interest Discovery, etc.
   tenthBoard      String?
   tenthScore      String?
   twelfthBoard    String?
@@ -1116,6 +1141,7 @@ model AssessmentSession {
 
   @@index([userId])
   @@index([completedAt])
+  @@index([userId, phase])
 }
 
 // Persisted decision-tree assessment path for each user session
@@ -1280,6 +1306,102 @@ model DailyAnalyticsSnapshot {
   @@index([date])
 }
 
+// ============ CAREER KNOWLEDGE GRAPH MODELS ============
+
+model CareerRole {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  jobId                  String   @unique
+  jobTitle               String
+  industry               String?
+  domain                 String?
+  careerCluster          String?
+  specialization         String?
+  experienceLevel        String?
+  educationLevel         String?
+  careerStage            String?
+  description            String?
+  requiredSkills         String[] @default([])
+  preferredSkills        String[] @default([])
+  softSkills             String[] @default([])
+  tools                  String[] @default([])
+  technologies           String[] @default([])
+  programmingLanguages   String[] @default([])
+  certifications         String[] @default([])
+  projects              String[] @default([])
+  roadmapTopics          Json?
+  weeklyAssessmentTopics String[] @default([])
+  interviewTopics        String[] @default([])
+  careerReadinessFactors String[] @default([])
+  futureDemand           String?
+  salaryRange            String?
+  remoteFriendly         Boolean  @default(false)
+  automationRisk         String?
+  difficulty             String?
+  estimatedLearningMonths String?
+  relatedRoles           String[] @default([])
+  nextCareerRoles        String[] @default([])
+  entryRoles             String[] @default([])
+  advancedRoles          String[] @default([])
+  personalityTraits      String[] @default([])
+  interestTags           String[] @default([])
+  workStyle              String?
+  workEnvironment        String?
+  industryTags           String[] @default([])
+  embeddingKeywords      String[] @default([])
+  similarRoles           String[] @default([])
+  sourceRecordCount      Int?
+  confidence             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([jobTitle])
+  @@index([careerCluster])
+  @@index([industryTags])
+  @@index([requiredSkills])
+  @@index([remoteFriendly])
+}
+
+model CareerKnowledgeSkill {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  skillName        String   @unique
+  parentSkill      String?
+  childSkills      String[] @default([])
+  difficulty       String?
+  prerequisites    String[] @default([])
+  importanceWeight Int?
+  relatedSkills    String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentSkill])
+}
+
+model CareerProgressionLadder {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  careerCluster String   @unique
+  ladder        String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CareerSkillWeight {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  jobId      String?
+  jobTitle   String
+  skillName  String
+  weight     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobTitle, skillName])
+  @@index([jobTitle])
+  @@index([skillName])
+}
+
 // ============ CAREER MODELS ============
 
 model Career {
@@ -1347,6 +1469,181 @@ model CareerMatch {
   @@unique([userId, careerId])
   @@index([userId])
   @@index([careerId])
+}
+
+// ============ CSV-BASED CAREER MATCHING MODELS ============
+
+model CSVCareerMatch {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId              String   @db.ObjectId
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Career information
+  careerTitle         String
+  overallScore        Float    // 0-100
+  confidenceLevel     String   @default("medium") // high, medium, low
+  
+  // Component scores (0-100)
+  skillMatchScore     Float
+  interestMatchScore  Float
+  educationMatchScore Float
+  experienceMatchScore Float
+  performanceScore    Float
+  readinessScore      Float
+  
+  // Skill analysis
+  matchedSkills       String[] @default([])
+  missingSkills       String[] @default([])
+  matchedInterests    String[] @default([])
+  strengthAlignment   String[] @default([])
+  
+  // Recommendations
+  learningPath        String[] @default([])
+  estimatedTimeToReady String?
+  nextSteps           String[] @default([])
+  recommendationReason String[] @default([])
+  
+  // Metadata
+  csvDatasetScore     Float    @default(0)
+  source              String   @default("csv") // csv, mongodb, hybrid
+  
+  // Assessment context
+  assessmentSessionId String?  @db.ObjectId
+  assessmentPhase     Int?     // Which phase was completed (1-7)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, careerTitle])
+  @@index([userId])
+  @@index([overallScore])
+  @@index([confidenceLevel])
+  @@index([source])
+  @@index([assessmentSessionId])
+  @@index([createdAt])
+}
+
+model CareerRecommendationSnapshot {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String   @db.ObjectId
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Snapshot metadata
+  snapshotType          String   @default("assessment") // assessment, performance_update, manual
+  assessmentSessionId   String?  @db.ObjectId
+  
+  // User profile snapshot at time of recommendation
+  userProfileSnapshot   Json     // Stores complete UserAssessmentProfile
+  
+  // Top recommendations (for quick retrieval)
+  topCareerTitles       String[] @default([])
+  topCareerScores       Float[]  @default([])
+  
+  // Complete recommendation data
+  fullRecommendations   Json     // Array of EnhancedCareerMatch
+  
+  // Scoring configuration used
+  scoringWeights        Json?    // ScoringWeights used for this snapshot
+  
+  // Performance metrics
+  averageScore          Float?
+  highConfidenceCount   Int      @default(0)
+  mediumConfidenceCount Int      @default(0)
+  lowConfidenceCount    Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([snapshotType])
+  @@index([assessmentSessionId])
+  @@index([createdAt])
+}
+
+model SkillGapAnalysis {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @db.ObjectId
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  careerTitle       String
+  careerMatchId     String?  @db.ObjectId
+  
+  // Current skills
+  currentSkills     String[] @default([])
+  currentLevel      String?  // beginner, intermediate, advanced
+  
+  // Required skills for career
+  requiredSkills    String[] @default([])
+  
+  // Gap analysis
+  missingSkills     String[] @default([])
+  partialSkills     String[] @default([]) // Skills user has but needs improvement
+  masteredSkills    String[] @default([])
+  
+  // Priority ranking
+  prioritySkills    Json?    // Array of {skill, priority, reason}
+  
+  // Learning recommendations
+  suggestedCourses  Json?    // Array of course recommendations
+  estimatedHours    Float?
+  estimatedMonths   Float?
+  
+  // Progress tracking
+  skillsInProgress  String[] @default([])
+  completedSkills   String[] @default([])
+  progressPercent   Float    @default(0)
+  
+  // Context
+  analysisSource    String   @default("assessment") // assessment, manual, ai
+  analysisDate      DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, careerTitle])
+  @@index([userId])
+  @@index([careerTitle])
+  @@index([progressPercent])
+  @@index([analysisDate])
+}
+
+model CareerPerformanceScore {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                  String   @db.ObjectId
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Assessment performance metrics
+  technicalAssessmentScore Float   @default(0) // 0-1
+  assessmentConfidence     Float   @default(0) // 0-1
+  correctAnswersRatio      Float   @default(0) // 0-1
+  averageResponseTime      Float?  // seconds
+  
+  // Phase-specific scores
+  phase1Score              Float?  // User Discovery
+  phase2Score              Float?  // Interest Discovery
+  phase3Score              Float?  // Capability Discovery
+  phase4Score              Float?  // Technical Assessment
+  phase5Score              Float?  // Career Readiness
+  
+  // Technical proficiency
+  technicalLevel           String? // beginner, intermediate, advanced
+  codingComfort            String? // none, basic, moderate, strong
+  problemSolvingLevel      String? // low, medium, high
+  
+  // Aggregate performance score
+  overallPerformanceScore  Float   @default(0) // 0-100
+  
+  // Tracking
+  lastAssessmentDate       DateTime?
+  assessmentCount          Int     @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId])
+  @@index([overallPerformanceScore])
+  @@index([technicalLevel])
+  @@index([lastAssessmentDate])
 }
 
 // ============ JOB MODELS ============
@@ -1828,3 +2125,38 @@ model InterviewSchedule {
   @@index([jobId])
   @@index([scheduledAt])
 }
+
+// ============ IT JOB ROLES MODELS ============
+
+model ItJobRole {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  jobId          String   @unique
+  jobTitle       String
+  careerCluster  String
+  seniorityLevel String
+  description    String
+  requiredSkills String[]
+  skillCount     Int
+  certifications String[]
+  assessmentTopics String[]
+  skillWeights   Json
+  relatedRoles   Json
+  embeddingKeywords String[]
+  searchText     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([careerCluster])
+  @@index([requiredSkills])
+  @@index([searchText], type: 'text')
+}
+
+model SkillIndexEntry {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  skillName         String   @unique
+  documentFrequency Int
+  jobIds            String[]
+
+  @@index([skillName])
+}
+

@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">36.36% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>8/22</span>
+                <span class='fraction'>0/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">13.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/15</span>
+                <span class='fraction'>0/15</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">36.36% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>8/22</span>
+                <span class='fraction'>0/22</span>
             </div>
         
             
@@ -102,21 +102,10 @@
 <a name='L37'></a><a href='#L37'>37</a>
 <a name='L38'></a><a href='#L38'>38</a>
 <a name='L39'></a><a href='#L39'>39</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -125,6 +114,17 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -138,17 +138,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Request, Response, NextFunction } from 'express';
-import redisClient from '@/lib/redis';
-import { rateLimiter as inMemoryLimiter } from './rateLimiter';
+<span class="cstat-no" title="statement not covered" >import redisClient from '@/lib/redis';</span>
+<span class="cstat-no" title="statement not covered" >import { rateLimiter as inMemoryLimiter } from './rateLimiter';</span>
 &nbsp;
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const DEFAULT_LIMIT = isDevelopment ? 200 : <span class="branch-1 cbranch-no" title="branch not covered" >20;</span> // per window
-const DEFAULT_LIMIT_AUTH = isDevelopment ? 600 : <span class="branch-1 cbranch-no" title="branch not covered" >60;</span> // higher limit for authenticated users
-const WINDOW_SECONDS = 60; // 1 minute
+const isDevelopment = <span class="cstat-no" title="statement not covered" >process.env.NODE_ENV !== 'production';</span>
+const DEFAULT_LIMIT = <span class="cstat-no" title="statement not covered" >isDevelopment ? 200 : 20;</span> // per window
+const DEFAULT_LIMIT_AUTH = <span class="cstat-no" title="statement not covered" >isDevelopment ? 600 : 60;</span> // higher limit for authenticated users
+const WINDOW_SECONDS = <span class="cstat-no" title="statement not covered" >60;</span> // 1 minute
 &nbsp;
-export async function <span class="fstat-no" title="function not covered" >redisRateLimiter(</span>req: Request, res: Response, next: NextFunction) {
+<span class="cstat-no" title="statement not covered" >export a</span>sync function <span class="fstat-no" title="function not covered" >redisRateLimiter(</span>req: Request, res: Response, next: NextFunction) {
 <span class="cstat-no" title="statement not covered" >  try {</span>
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!redisClient.isReady()) {</span>
       // fallback to in-memory limiter
@@ -176,7 +176,7 @@ export async function <span class="fstat-no" title="function not covered" >redis
   }
 }
 &nbsp;
-export default redisRateLimiter;
+<span class="cstat-no" title="statement not covered" >export default redisRateLimiter;</span>
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -184,7 +184,7 @@ export default redisRateLimiter;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-10T14:17:58.688Z
+                at 2026-07-25T12:04:53.648Z
             </div>
         <script src="../prettify.js"></script>
         <script>

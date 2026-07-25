@@ -1,6 +1,9 @@
 import { MongoClient } from 'mongodb';
 import { prisma } from '@/lib/prisma';
 import { getMongoUrl } from '@/config/mongo';
+import { csvCareerDatasetService } from './csv-career-dataset';
+import { assessmentCareerMatcherService, UserAssessmentProfile } from './assessment-career-matcher';
+import { performanceScoringService } from './performance-scoring';
 
 export interface AssessmentAnswers {
   skills?: string[];
@@ -10,6 +13,14 @@ export interface AssessmentAnswers {
   personality?: string[];
   workStyle?: string[];
   careerGoals?: string[];
+}
+
+export interface HybridCareerMatchOptions {
+  useCSVDataset?: boolean;
+  useMongoDBCareers?: boolean;
+  includePerformanceScore?: boolean;
+  mergeStrategy?: 'union' | 'intersection' | 'csv-priority' | 'mongodb-priority';
+  topN?: number;
 }
 
 export interface CareerMatchResult {
@@ -517,6 +528,181 @@ class CareerMatchingEngine {
       },
       orderBy: { jobMarketDemand: 'desc' },
     });
+  }
+
+  /**
+   * HYBRID RECOMMENDATION: Combine CSV dataset and MongoDB careers
+   * This is the enhanced method that integrates both data sources
+   */
+  async analyzeAssessmentHybrid(
+    userId: string,
+    answers: AssessmentAnswers,
+    options: HybridCareerMatchOptions = {}
+  ): Promise<CareerMatchResult[]> {
+    const {
+      useCSVDataset = true,
+      useMongoDBCareers = true,
+      includePerformanceScore = true,
+      mergeStrategy = 'union',
+      topN = 10,
+    } = options;
+
+    const allMatches: CareerMatchResult[] = [];
+
+    // Build user profile for CSV matching
+    let userProfile: UserAssessmentProfile | null = null;
+    let performanceMetrics = null;
+
+    if (useCSVDataset && includePerformanceScore) {
+      try {
+        userProfile = await assessmentCareerMatcherService.buildUserProfileFromAssessment(userId);
+        if (userProfile) {
+          performanceMetrics = await performanceScoringService.getPerformanceScore(userId);
+          if (performanceMetrics) {
+            userProfile.technicalAssessmentScore = performanceMetrics.technicalAssessmentScore;
+            userProfile.assessmentConfidence = performanceMetrics.assessmentConfidence;
+            userProfile.correctAnswersRatio = performanceMetrics.correctAnswersRatio;
+            userProfile.technicalLevel = performanceMetrics.technicalLevel;
+            userProfile.codingComfort = performanceMetrics.codingComfort;
+            userProfile.problemSolving = performanceMetrics.problemSolvingLevel;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to build user profile for CSV matching:', error);
+      }
+    }
+
+    // Get CSV-based recommendations
+    if (useCSVDataset && userProfile) {
+      try {
+        const csvMatches = await assessmentCareerMatcherService.matchCareersFromAssessment(
+          userProfile,
+          {
+            topN: topN * 2, // Get more for merging
+            includeMongoDBCareers: false,
+          }
+        );
+
+        // Convert to CareerMatchResult format
+        csvMatches.forEach((match) => {
+          allMatches.push({
+            careerId: '', // CSV matches don't have MongoDB IDs
+            careerTitle: match.careerTitle,
+            matchScore: match.overallScore / 100, // Normalize to 0-1
+            confidenceLevel: match.confidenceLevel,
+            requiredSkills: csvCareerDatasetService.getCareerSkills(match.careerTitle),
+            recommendedSkills: match.matchedSkills,
+            skillGaps: match.missingSkills,
+            personalityMatch: 0, // Not calculated in CSV matching
+            educationMatch: match.educationMatchScore / 100,
+            experienceMatch: match.experienceMatchScore / 100,
+            reasons: match.recommendationReason,
+          });
+        });
+      } catch (error) {
+        console.warn('Failed to get CSV recommendations:', error);
+      }
+    }
+
+    // Get MongoDB-based recommendations
+    if (useMongoDBCareers) {
+      try {
+        const mongoMatches = await this.analyzeAssessment(userId, answers);
+        
+        // Merge based on strategy
+        if (mergeStrategy === 'union') {
+          // Add MongoDB matches that don't exist in CSV matches
+          mongoMatches.forEach((mongoMatch) => {
+            const exists = allMatches.some(
+              (m) => m.careerTitle.toLowerCase() === mongoMatch.careerTitle.toLowerCase()
+            );
+            if (!exists) {
+              allMatches.push(mongoMatch);
+            }
+          });
+        } else if (mergeStrategy === 'intersection') {
+          // Only keep careers that appear in both
+          const csvTitles = new Set(allMatches.map((m) => m.careerTitle.toLowerCase()));
+          mongoMatches.forEach((mongoMatch) => {
+            if (csvTitles.has(mongoMatch.careerTitle.toLowerCase())) {
+              // Boost score for careers appearing in both
+              const csvMatch = allMatches.find(
+                (m) => m.careerTitle.toLowerCase() === mongoMatch.careerTitle.toLowerCase()
+              );
+              if (csvMatch) {
+                csvMatch.matchScore = (csvMatch.matchScore + mongoMatch.matchScore) / 2;
+                csvMatch.matchScore *= 1.2; // 20% boost for dual appearance
+              }
+            }
+          });
+        } else if (mergeStrategy === 'csv-priority') {
+          // CSV first, then MongoDB
+          allMatches.push(...mongoMatches);
+        } else if (mergeStrategy === 'mongodb-priority') {
+          // MongoDB first, then CSV
+          const tempMatches = [...mongoMatches];
+          allMatches.forEach((csvMatch) => {
+            const exists = tempMatches.some(
+              (m) => m.careerTitle.toLowerCase() === csvMatch.careerTitle.toLowerCase()
+            );
+            if (!exists) {
+              tempMatches.push(csvMatch);
+            }
+          });
+          allMatches.length = 0;
+          allMatches.push(...tempMatches);
+        }
+      } catch (error) {
+        console.warn('Failed to get MongoDB recommendations:', error);
+      }
+    }
+
+    // Sort by match score descending
+    allMatches.sort((a, b) => b.matchScore - a.matchScore);
+
+    // Return top N
+    return allMatches.slice(0, topN);
+  }
+
+  /**
+   * Get career recommendations with CSV enhancement
+   * This method automatically uses hybrid matching if CSV dataset is available
+   */
+  async analyzeAssessmentEnhanced(
+    userId: string,
+    answers: AssessmentAnswers
+  ): Promise<CareerMatchResult[]> {
+    // Check if CSV dataset is loaded
+    const csvLoaded = csvCareerDatasetService.isDatasetLoaded();
+
+    if (csvLoaded) {
+      console.log('[CareerMatching] Using hybrid matching (CSV + MongoDB)');
+      return this.analyzeAssessmentHybrid(userId, answers, {
+        useCSVDataset: true,
+        useMongoDBCareers: true,
+        includePerformanceScore: true,
+        mergeStrategy: 'union',
+        topN: 10,
+      });
+    } else {
+      console.log('[CareerMatching] CSV dataset not loaded, using MongoDB only');
+      return this.analyzeAssessment(userId, answers);
+    }
+  }
+
+  /**
+   * Get hybrid career statistics
+   */
+  getHybridStatistics(): {
+    csvDatasetLoaded: boolean;
+    csvDatasetStats: any;
+    mongoDBCareersCount: number;
+  } {
+    return {
+      csvDatasetLoaded: csvCareerDatasetService.isDatasetLoaded(),
+      csvDatasetStats: csvCareerDatasetService.getStatistics(),
+      mongoDBCareersCount: 0, // Would need to query this
+    };
   }
 }
 

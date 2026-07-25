@@ -55,6 +55,26 @@ export interface AuthUser {
     avatar?: string | null;
     emailVerified?: boolean;
   }>;
+  // ── Phase 1 profile fields ────────────────────────────────────────────────
+  gender?: string | null;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  currentStatus?: string | null;
+  collegeName?: string | null;
+  university?: string | null;
+  degree?: string | null;
+  branch?: string | null;
+  currentYear?: string | null;
+  expectedGraduationYear?: number | null;
+  programmingExperience?: string | null;
+  previouslyWorked?: boolean | null;
+  yearsOfExperience?: number | null;
+  currentCompany?: string | null;
+  currentRole?: string | null;
+  careerGoal?: string | null;
 }
 
 export interface AuthSession {

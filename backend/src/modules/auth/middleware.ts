@@ -44,8 +44,14 @@ function extractToken(req: Request): string | null {
 function verifyToken(token: string): AuthContext {
   try {
     const decoded = jwt.verify(token, JWT_CONSTANTS.SECRET) as any;
+    const userId = decoded.userId ?? decoded.id;
+
+    if (!userId) {
+      throw new InvalidTokenError("Invalid token payload");
+    }
+
     return {
-      userId: decoded.userId,
+      userId,
       email: decoded.email,
       role: decoded.role,
       organizationId: decoded.organizationId,

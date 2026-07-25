@@ -34,8 +34,10 @@ import taskRoutes from '@/routes/task';
 import healthRoutes from '@/routes/health';
 import careerMatchingRoutes from '@/routes/career-matching';
 import careersRoutes from '@/routes/careers';
+import csvCareerRecommendationsRoutes from '@/routes/csv-career-recommendations';
 import topicsRoutes from '@/routes/topics';
 import jobsRoutes from '@/routes/jobs';
+import careerGraphRoutes from '@/routes/careerGraph';
 import learningResourcesRoutes from '@/routes/learningResources';
 import xpRoutes from '@/routes/xp';
 import quizRoutes from '@/routes/quiz';
@@ -49,6 +51,7 @@ import { ensureIntelligenceIndexes } from '@/modules/intelligence/intelligence.i
 import notesRoutes from '@/modules/notes/notes.routes';
 import recruitmentRoutes from '@/modules/recruitment/recruitment.routes';
 import placementRoutes from '@/modules/placement/placement.routes';
+import { csvCareerDatasetService } from '@/services/csv-career-dataset';
 import path from 'path';
 import fs from 'fs';
 
@@ -148,11 +151,13 @@ app.use('/api/ai', redisRateLimiter, aiRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/career-matching', careerMatchingRoutes);
 app.use('/api/careers', careersRoutes);
+app.use('/api/csv-careers', csvCareerRecommendationsRoutes);
 app.use('/api/topics', topicsRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/learning-resources', learningResourcesRoutes);
 app.use('/api/xp', xpRoutes);
 app.use('/api/quiz', quizRoutes);
+app.use('/api/career-graph', careerGraphRoutes);
 app.use('/api/journey', journeyRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
@@ -219,5 +224,21 @@ app.use(errorHandler);
 
 // Ensure intelligence audit indexes (non-blocking)
 void ensureIntelligenceIndexes();
+
+// Initialize CSV Career Dataset (non-blocking)
+void (async () => {
+  try {
+    console.log('[CSV Dataset] Loading career dataset...');
+    await csvCareerDatasetService.loadDataset();
+    const stats = csvCareerDatasetService.getDatasetStats();
+    console.log('[CSV Dataset] ✅ Loaded successfully:', {
+      records: stats.totalRecords,
+      careers: stats.uniqueCareers,
+      skills: stats.totalSkills,
+    });
+  } catch (error) {
+    console.error('[CSV Dataset] ❌ Failed to load:', error);
+  }
+})();
 
 export default app;

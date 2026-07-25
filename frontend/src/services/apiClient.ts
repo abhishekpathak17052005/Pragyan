@@ -1,7 +1,13 @@
 import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import type { ApiResponse, AuthSession, PaginatedResponse } from "@/types/api";
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "/api";
+const rawApiUrl = (
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  (import.meta.env.VITE_BACKEND_URL as string | undefined)
+)?.replace(/\/$/, "") || "";
+const API_BASE_URL = rawApiUrl
+  ? rawApiUrl.replace(/\/api\/?$/, "") + "/api"
+  : "/api";
 const AUTH_SESSION_KEY = "pragyan_auth_session";
 
 type RequestConfig = AxiosRequestConfig & {

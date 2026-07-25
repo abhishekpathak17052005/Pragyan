@@ -8,7 +8,17 @@ export const analyzeAssessmentAndRecommend = asyncHandler(async (req: Request, r
     return sendError(res, 401, 'Unauthorized');
   }
 
-  const { skills, interests, education, experience, personality, workStyle, careerGoals } = req.body;
+  const { 
+    skills, 
+    interests, 
+    education, 
+    experience, 
+    personality, 
+    workStyle, 
+    careerGoals,
+    useHybridMatching = true, // New option
+    hybridOptions,
+  } = req.body;
 
   if (!skills && !interests) {
     return sendError(res, 400, 'At least skills or interests are required');
@@ -24,9 +34,17 @@ export const analyzeAssessmentAndRecommend = asyncHandler(async (req: Request, r
     careerGoals,
   };
 
-  const matches = await careerMatchingEngine.analyzeAssessment(req.user.id, answers);
+  // Use enhanced matching if requested
+  const matches = useHybridMatching
+    ? await careerMatchingEngine.analyzeAssessmentEnhanced(req.user.id, answers)
+    : await careerMatchingEngine.analyzeAssessment(req.user.id, answers);
 
-  return sendSuccess(res, matches, 200, 'Career recommendations generated successfully');
+  // If hybrid options provided, use hybrid matching with custom options
+  const finalMatches = hybridOptions
+    ? await careerMatchingEngine.analyzeAssessmentHybrid(req.user.id, answers, hybridOptions)
+    : matches;
+
+  return sendSuccess(res, finalMatches, 200, 'Career recommendations generated successfully');
 });
 
 export const getCareerMatches = asyncHandler(async (req: Request, res: Response) => {
@@ -68,4 +86,15 @@ export const getCareerDetails = asyncHandler(async (req: Request, res: Response)
 
   // TODO: Implement career details retrieval including skills, interests, roadmaps, etc.
   return sendError(res, 501, 'Feature coming soon');
+});
+
+export const getHybridStatistics = asyncHandler(async (_req: Request, res: Response) => {
+  const stats = careerMatchingEngine.getHybridStatistics();
+
+  return sendSuccess(
+    res,
+    stats,
+    200,
+    'Hybrid career matching statistics retrieved successfully'
+  );
 });
