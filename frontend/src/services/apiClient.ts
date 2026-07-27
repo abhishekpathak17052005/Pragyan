@@ -70,6 +70,48 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Retry wrapper with exponential backoff for transient failures
+ * Used for critical operations like assessment saves
+ */
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  initialDelayMs = 500
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Don't retry on client errors (4xx) except for 408, 429, 500+
+      if (error instanceof ApiError && error.status && error.status >= 400 && error.status < 500) {
+        if (error.status !== 408 && error.status !== 429) {
+          throw error; // Don't retry — client error
+        }
+      }
+
+      // If this is the last attempt, throw
+      if (attempt === maxRetries - 1) {
+        throw lastError;
+      }
+
+      // Calculate delay with exponential backoff: 500ms, 1s, 2s
+      const delayMs = initialDelayMs * Math.pow(2, attempt);
+      console.warn(`[API Retry] Attempt ${attempt + 1} failed, retrying in ${delayMs}ms`, {
+        error: lastError.message,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw lastError || new Error("Unknown error");
+}
+
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
@@ -155,6 +197,10 @@ axiosInstance.interceptors.response.use(
 );
 
 function unwrap<T>(payload: ApiResponse<T> | T): T {
+  // Handle 304 Not Modified (empty response body)
+  if (payload === undefined || payload === null) {
+    return undefined as T;
+  }
   if (payload && typeof payload === "object" && "success" in payload && "data" in payload) {
     return (payload as ApiResponse<T>).data as T;
   }
@@ -185,6 +231,28 @@ export const api = {
   async paginated<T>(url: string, config?: RequestConfig) {
     const response = await axiosInstance.get<PaginatedResponse<T>>(url, config);
     return response.data;
+  },
+  /**
+   * Retry-enabled POST for critical operations (assessment saves)
+   * Retries up to 3 times with exponential backoff on transient failures
+   */
+  async postWithRetry<T>(url: string, data?: unknown, config?: RequestConfig) {
+    return retryWithBackoff(
+      () => this.post<T>(url, data, config),
+      3,
+      500
+    );
+  },
+  /**
+   * Retry-enabled PUT for critical operations (assessment updates)
+   * Retries up to 3 times with exponential backoff on transient failures
+   */
+  async putWithRetry<T>(url: string, data?: unknown, config?: RequestConfig) {
+    return retryWithBackoff(
+      () => this.put<T>(url, data, config),
+      3,
+      500
+    );
   },
   onLoadingChange(listener: (loading: boolean) => void) {
     loadingListeners.add(listener);

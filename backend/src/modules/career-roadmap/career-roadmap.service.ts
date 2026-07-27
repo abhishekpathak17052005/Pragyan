@@ -325,12 +325,32 @@ export class CareerRoadmapService {
   }
 
   async listAdminCareers() {
+    // Fetch paginated careers with minimal data (summary only)
     const careers = await prisma.careerRoadmap.findMany({
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-      include: this.careerTreeInclude(),
+      take: 10, // Pagination: limit to 10 careers per request
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        description: true,
+        thumbnail: true,
+        icon: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        modules: {
+          select: {
+            weeks: {
+              select: { id: true },
+            },
+          },
+        },
+      },
     });
 
-    return careers.map(mapCareerTree);
+    // Map to summary format (no nested tree)
+    return careers.map(mapCareerSummary);
   }
 
   async generateCareerRoadmap(input: GenerateCareerRoadmapInput) {

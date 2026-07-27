@@ -183,8 +183,17 @@ export default function AssessmentPhase2() {
     motivation:       motivation ?? "Personal Interest",
   });
 
-  const { autoSave, isSaving } = useAutoSave<Phase2Input>(
-    (d) => assessmentService.savePhase2(d), 2000
+  const { autoSave, isSaving, error: autoSaveError } = useAutoSave<Phase2Input>(
+    (d) => assessmentService.savePhase2(d), 2000,
+    {
+      onError: (error) => {
+        toast({
+          title: "Auto-save failed",
+          description: error.message || "Failed to save your progress. Please check your connection.",
+          variant: "destructive",
+        });
+      },
+    }
   );
 
   useEffect(() => {

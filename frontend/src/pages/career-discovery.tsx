@@ -64,10 +64,34 @@ export default function CareerDiscovery() {
   });
 
   // Fetch CSV-based recommendations (new method)
-  const { data: csvData, isLoading: isLoadingCSV } = useQuery({
+  const { data: csvData, isLoading: isLoadingCSV, isError: isCSVError } = useQuery({
     queryKey: ["csv-careers", "recommendations"],
-    queryFn: () => csvCareerService.getRecommendations({ limit: 10 }),
-    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await csvCareerService.getRecommendations({ limit: 10 });
+        // Handle both direct array and object with recommendations property
+        const recommendations = Array.isArray(response) ? response : response?.recommendations || [];
+        
+        // If no recommendations exist, generate them
+        if (!recommendations || recommendations.length === 0) {
+          console.log('[Career Discovery] No saved recommendations found, generating new ones...');
+          const genResponse = await csvCareerService.recommendCareers({ topN: 10, saveResults: true });
+          return genResponse.recommendations || [];
+        }
+        return recommendations;
+      } catch (error) {
+        console.warn('[Career Discovery] Failed to fetch saved recommendations:', error);
+        // Try to generate fresh recommendations on error
+        try {
+          const response = await csvCareerService.recommendCareers({ topN: 10, saveResults: true });
+          return response.recommendations || [];
+        } catch (genError) {
+          console.error('[Career Discovery] Failed to generate recommendations:', genError);
+          throw genError;
+        }
+      }
+    },
+    retry: true,
     enabled: activeTab === "csv",
   });
 
@@ -96,7 +120,9 @@ export default function CareerDiscovery() {
       ? (csvData || []).map(match => ({
           career: match.careerTitle,
           score: Math.round(match.overallScore),
-          reason: match.recommendationReason[0] || "Based on your assessment and skills",
+          reason: (Array.isArray(match.recommendationReason) 
+            ? match.recommendationReason[0] 
+            : match.recommendationReason) || "Based on your assessment and skills",
           matchedSkills: match.matchedSkills,
           missingSkills: match.missingSkills,
           confidence: match.confidenceLevel,

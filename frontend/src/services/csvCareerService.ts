@@ -227,7 +227,9 @@ class CSVCareerService {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     
     const url = `/csv-careers/recommendations${queryParams.toString() ? `?${queryParams}` : ''}`;
-    return api.get<CSVCareerMatch[]>(url);
+    const response = await api.get<{ recommendations: CSVCareerMatch[], count: number }>(url);
+    // Return just the array for easier consumption
+    return Array.isArray(response) ? response : response.recommendations || [];
   }
 
   /**

@@ -1,6 +1,34 @@
 import fs from 'fs';
 import path from 'path';
-import { parse } from 'csv-parse/sync';
+
+/**
+ * Simple CSV parser - parses CSV content and returns records as objects
+ */
+function parseCSV(content: string, options: { columns: boolean; skip_empty_lines: boolean; trim: boolean }): Record<string, string>[] {
+  const lines = content.split('\n').filter(line => !options.skip_empty_lines || line.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  const headerLine = lines[0];
+  const headers = headerLine.split(',').map(h => h.trim());
+  
+  const records: Record<string, string>[] = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || (options.skip_empty_lines && !line.trim())) continue;
+    
+    const values = line.split(',').map(v => options.trim ? v.trim() : v);
+    const record: Record<string, string> = {};
+    
+    headers.forEach((header, index) => {
+      record[header] = values[index] || '';
+    });
+    
+    records.push(record);
+  }
+  
+  return records;
+}
 
 /**
  * Represents a career role from the CSV dataset
@@ -39,7 +67,7 @@ class CSVCareerDatasetService {
       const csvPath = path.join(__dirname, '../../datasets/AI-based Career Recommendation System.csv');
       const fileContent = fs.readFileSync(csvPath, 'utf-8');
 
-      const records = parse(fileContent, {
+      const records = parseCSV(fileContent, {
         columns: true,
         skip_empty_lines: true,
         trim: true,

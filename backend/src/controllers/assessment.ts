@@ -365,16 +365,69 @@ export const savePhase1 = asyncHandler(async (req: Request, res: Response) => {
   const parsed = phase1Schema.safeParse(req.body);
   if (!parsed.success) {
     const firstError = parsed.error.errors[0];
+    console.warn('[savePhase1] Validation failed', {
+      userId: req.user.id,
+      field: firstError?.path.join('.'),
+      message: firstError?.message,
+    });
     return sendError(res, 400, firstError?.message ?? 'Validation failed');
   }
 
   const { personalInfo: pi, education: edu, careerGoal, experience: exp } = parsed.data;
   const userId = req.user.id;
 
-  // ── Single source of truth: route through authService.updateUserProfile ──
-  // This ensures contextAggregator.invalidate fires, snapshot updates, and
-  // every other part of the app reading the User record sees the latest data.
-  await authService.updateUserProfile(userId, {
+  // Additional validation checks before database write
+  const validationErrors: string[] = [];
+
+  // Validate personal info
+  if (!pi.firstName || pi.firstName.trim().length === 0) validationErrors.push('First name cannot be empty');
+  if (!pi.lastName || pi.lastName.trim().length === 0) validationErrors.push('Last name cannot be empty');
+  if (pi.age < 13 || pi.age > 65) validationErrors.push('Age must be between 13 and 65');
+  if (!pi.country || !pi.state || !pi.city) validationErrors.push('Location information is incomplete');
+
+  // Validate education
+  if (!edu.currentStatus) validationErrors.push('Current status is required');
+  if (!edu.highestQualification) validationErrors.push('Highest qualification is required');
+  if (edu.currentStatus === 'College Student' && !edu.currentYear) validationErrors.push('Current year is required for college students');
+  if (edu.expectedGraduationYear && edu.expectedGraduationYear < 2000) {
+    validationErrors.push('Expected graduation year must be valid (2000 or later)');
+  }
+
+  // Validate experience
+  if (!exp.programmingExperience) validationErrors.push('Programming experience level is required');
+  if (exp.previouslyWorked && (!exp.yearsOfExperience || exp.yearsOfExperience < 0)) {
+    validationErrors.push('Years of experience must be provided and valid');
+  }
+
+  if (validationErrors.length > 0) {
+    console.warn('[savePhase1] Validation errors', { userId, errors: validationErrors });
+    return sendError(res, 400, validationErrors[0]);
+  }
+
+  console.log('[savePhase1] Validation passed, proceeding to save', {
+    userId,
+    firstName: pi.firstName,
+    education: edu.highestQualification,
+  });
+
+  // Build payload for both User update and AssessmentSession
+  const now = new Date();
+  const phasePayload = {
+    answers: JSON.stringify({ phase: 1, ...parsed.data }),
+    selectedOptions: [],
+    analysis: JSON.stringify({
+      phase: 1,
+      completionPercent: 100,
+      personalInfo:  pi,
+      education:     edu,
+      careerGoal,
+      experience:    exp,
+      savedAt:       now.toISOString(),
+    }),
+    completedAt: now,
+  };
+
+  const userProfileUpdate = {
     firstName:              pi.firstName,
     lastName:               pi.lastName,
     fullName:               `${pi.firstName} ${pi.lastName}`.trim(),
@@ -384,7 +437,6 @@ export const savePhase1 = asyncHandler(async (req: Request, res: Response) => {
     state:                  pi.state,
     city:                   pi.city,
     location:               `${pi.city}, ${pi.state}, ${pi.country}`.trim(),
-    // Education
     currentStatus:          edu.currentStatus,
     education:              edu.highestQualification,
     currentCourse:          edu.degree ?? edu.highestQualification,
@@ -395,10 +447,8 @@ export const savePhase1 = asyncHandler(async (req: Request, res: Response) => {
     currentYear:            edu.currentYear,
     expectedGraduationYear: edu.expectedGraduationYear ?? undefined,
     cgpa:                   edu.cgpaOrPercentage,
-    // Career goal
     careerGoal,
     careerTrack:            careerGoal,
-    // Experience
     programmingExperience:  exp.programmingExperience,
     skillLevel:             exp.programmingExperience,
     previouslyWorked:       exp.previouslyWorked,
@@ -407,27 +457,42 @@ export const savePhase1 = asyncHandler(async (req: Request, res: Response) => {
     yearsOfExperience:      exp.yearsOfExperience ?? undefined,
     currentCompany:         exp.currentCompany,
     currentRole:            exp.currentRole,
-  } as any);
+  } as any;
 
-  // Persist raw phase data in AssessmentSession for audit / phase tracking
-  const session = await prisma.assessmentSession.create({
-    data: {
-      userId,
-      phase: 1,
-      answers: JSON.stringify({ phase: 1, ...parsed.data }),
-      selectedOptions: [],
-      analysis: JSON.stringify({
-        phase: 1,
-        completionPercent: 100,
-        personalInfo:  pi,
-        education:     edu,
-        careerGoal,
-        experience:    exp,
-        savedAt:       new Date().toISOString(),
-      }),
-      completedAt: new Date(),
-    },
+  // Find existing session before transaction
+  const existingSession = await prisma.assessmentSession.findFirst({
+    where: { userId, phase: 1 },
+    orderBy: { completedAt: 'desc' },
   });
+
+  // Transaction: atomically update User and create/update AssessmentSession
+  // This ensures both succeed or both fail — no partial saves
+  const [, session] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: userProfileUpdate,
+    }),
+    existingSession
+      ? prisma.assessmentSession.update({
+          where: { id: existingSession.id },
+          data: phasePayload,
+        })
+      : prisma.assessmentSession.create({
+          data: {
+            userId,
+            phase: 1,
+            ...phasePayload,
+          },
+        }),
+  ]);
+
+  // Invalidate user context after successful transaction
+  try {
+    const { contextAggregator } = await import('@/services/contextAggregator');
+    await contextAggregator.invalidate(userId);
+  } catch (e) {
+    // Silent fail — data already persisted
+  }
 
   return sendSuccess(res, {
     sessionId:         session.id,
@@ -472,45 +537,74 @@ export const savePhase2 = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) return sendError(res, 401, 'Unauthorized');
   const startTs = Date.now();
   const userId = req.user.id;
-  console.log('[savePhase2] request start', { userId, path: req.path, timestamp: new Date().toISOString() });
+  console.log('\n========== PHASE 2 SAVE START ==========');
+  console.log('[savePhase2] request start', { userId, path: req.path, body: req.body, timestamp: new Date().toISOString() });
 
   const { phase2Schema } = await import('@/validators/assessment');
   const parsed = phase2Schema.safeParse(req.body);
   if (!parsed.success) {
     const firstError = parsed.error.errors[0];
-    console.warn('[savePhase2] validation failed', { userId, error: firstError?.message });
+    console.warn('[savePhase2] validation failed', { userId, field: firstError?.path.join('.'), message: firstError?.message });
     return sendError(res, 400, firstError?.message ?? 'Validation failed');
   }
 
   const data = parsed.data;
 
-  // ── Sync long-term preferences to User Profile (single source of truth) ──────
-  // careerGoal, interests (preferredDomains), preferences (workStyle + learningStyle)
-  try {
-    console.log('[savePhase2] syncing profile', { userId, careerObjective: data.careerObjective, domainsCount: data.preferredDomains.length });
-    await authService.updateUserProfile(userId, {
-      careerGoal:  data.careerObjective,
-      careerTrack: data.careerObjective,
-      interests:   data.preferredDomains,
-      preferences: [...data.workStyle, ...data.learningStyle],
-    } as any);
-  } catch (err) {
-    console.error('[savePhase2] updateUserProfile failed:', { userId, message: (err as any)?.message || err });
-    // Continue — we still want to persist the raw phase data for audit and to allow Phase 3 to start.
+  // Additional validation before processing
+  const validationErrors: string[] = [];
+
+  if (!data.careerObjective || data.careerObjective.trim().length === 0) {
+    validationErrors.push('Career objective is required');
   }
 
-  // ── Build baseline AI payload for Phase 3 ─────────────────────────────────────
-  // Fetch Phase 1 data from most recent phase-1 session
+  if (!Array.isArray(data.preferredDomains) || data.preferredDomains.length < 1) {
+    validationErrors.push('At least one preferred domain is required');
+  }
+
+  if (!Array.isArray(data.favoriteSubjects) || data.favoriteSubjects.length < 3) {
+    validationErrors.push('At least 3 favorite subjects are required');
+  }
+
+  if (!Array.isArray(data.workStyle) || data.workStyle.length < 1) {
+    validationErrors.push('At least one work style is required');
+  }
+
+  if (!Array.isArray(data.learningStyle) || data.learningStyle.length < 1) {
+    validationErrors.push('At least one learning style is required');
+  }
+
+  if (!data.motivation) {
+    validationErrors.push('Motivation is required');
+  }
+
+  if (validationErrors.length > 0) {
+    console.warn('[savePhase2] Additional validation errors', { userId, errors: validationErrors });
+    return sendError(res, 400, validationErrors[0]);
+  }
+
+  // ── Verify Phase 1 exists before proceeding ──────────────────────────────────
   const phase1Session = await prisma.assessmentSession.findFirst({
     where: { userId, phase: 1 },
     orderBy: { completedAt: 'desc' },
   });
 
+  if (!phase1Session) {
+    console.warn('[savePhase2] Phase 1 not found', { userId });
+    return sendError(res, 400, 'Phase 1 must be completed before Phase 2');
+  }
+
   let phase1Analysis: Record<string, unknown> = {};
   try {
-    phase1Analysis = phase1Session ? JSON.parse(phase1Session.analysis) : {};
+    phase1Analysis = JSON.parse(phase1Session.analysis);
   } catch { /* ignore */ }
 
+  console.log('[savePhase2] Phase 1 verified, proceeding to save', {
+    userId,
+    domainsCount: data.preferredDomains.length,
+    careerObjective: data.careerObjective,
+  });
+
+  // ── Build baseline AI payload for Phase 3 ─────────────────────────────────────
   // Fetch user profile for baseline context
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -552,52 +646,82 @@ export const savePhase2 = asyncHandler(async (req: Request, res: Response) => {
     motivation:       data.motivation,
   };
 
-  // ── Persist phase 2 data in AssessmentSession ─────────────────────────────────
+  // ── Prepare phase 2 payload ──────────────────────────────────────────────────
+  const now = new Date();
+  const phasePayload = {
+    answers: JSON.stringify({ phase: 2, ...data }),
+    selectedOptions: data.preferredDomains,
+    analysis: JSON.stringify({
+      phase:             2,
+      completionPercent: 100,
+      careerObjective:   data.careerObjective,
+      preferredDomains:  data.preferredDomains,
+      skillConfidence:   data.skillConfidence,
+      favoriteSubjects:  data.favoriteSubjects,
+      workStyle:         data.workStyle,
+      learningStyle:     data.learningStyle,
+      motivation:        data.motivation,
+      baselinePayload,
+      savedAt:           now.toISOString(),
+    }),
+    completedAt: now,
+  };
+
+  const userProfileUpdate = {
+    careerGoal:  data.careerObjective,
+    careerTrack: data.careerObjective,
+    interests:   data.preferredDomains,
+    preferences: [...data.workStyle, ...data.learningStyle],
+  } as any;
+
+  // Find existing session before transaction
+  const existingSession = await prisma.assessmentSession.findFirst({
+    where: { userId, phase: 2 },
+    orderBy: { completedAt: 'desc' },
+  });
+
+  // ── Transaction: Update User profile AND create/update AssessmentSession atomically ──
   let session;
   try {
-    session = await prisma.assessmentSession.create({
-      data: {
-        userId,
-        phase: 2,
-        answers: JSON.stringify({ phase: 2, ...data }),
-        selectedOptions: data.preferredDomains,
-        analysis: JSON.stringify({
-          phase:             2,
-          completionPercent: 100,
-          careerObjective:   data.careerObjective,
-          preferredDomains:  data.preferredDomains,
-          skillConfidence:   data.skillConfidence,
-          favoriteSubjects:  data.favoriteSubjects,
-          workStyle:         data.workStyle,
-          learningStyle:     data.learningStyle,
-          motivation:        data.motivation,
-          baselinePayload,
-          savedAt:           new Date().toISOString(),
-        }),
-        completedAt: new Date(),
-      },
-    });
-    console.log('[savePhase2] session persisted', { userId, sessionId: session.id, durationMs: Date.now() - startTs });
+    console.log('[savePhase2] starting transaction', { userId });
+    const [, txSession] = await prisma.$transaction([
+      // First: Update user profile with Phase 2 preferences
+      prisma.user.update({
+        where: { id: userId },
+        data: userProfileUpdate,
+      }),
+      // Second: Create or update assessment session
+      existingSession
+        ? prisma.assessmentSession.update({
+            where: { id: existingSession.id },
+            data: phasePayload,
+          })
+        : prisma.assessmentSession.create({
+            data: {
+              userId,
+              phase: 2,
+              ...phasePayload,
+            },
+          }),
+    ]);
+    session = txSession;
+    console.log('[savePhase2] transaction succeeded', { userId, sessionId: session.id, phase: session.phase, durationMs: Date.now() - startTs });
+    console.log('[savePhase2] saved data:', { sessionId: session.id, phase: session.phase, createdAt: session.createdAt });
   } catch (err) {
-    console.error('[savePhase2] failed to persist AssessmentSession:', { userId, message: (err as any)?.message || err });
+    console.error('[savePhase2] transaction failed:', { userId, error: (err as any)?.message || err, code: (err as any)?.code });
     return sendError(res, 500, 'Failed to save phase 2 data; database error');
   }
 
+  // Invalidate user context after successful transaction
   try {
-    // success response
-    return sendSuccess(res, {
-      sessionId:         session.id,
-      phase:             2,
-      completionPercent: 100,
-      nextPhase:         3,
-      redirectTo:        '/assessment/phase-3',
-      baselinePayload,
-    }, 201, 'Phase 2 saved successfully');
-  } catch (err) {
-    console.error('[savePhase2] failed to send success response', { userId, message: (err as any)?.message || err });
-    return sendError(res, 500, 'Failed to complete save operation');
+    const { contextAggregator } = await import('@/services/contextAggregator');
+    await contextAggregator.invalidate(userId);
+  } catch (e) {
+    // Silent fail — data already persisted
   }
 
+  console.log('[savePhase2] sending success response', { sessionId: session.id, phase: 2 });
+  console.log('========== PHASE 2 SAVE END ==========\n');
   return sendSuccess(res, {
     sessionId:         session.id,
     phase:             2,
@@ -616,12 +740,22 @@ export const getPhase2 = asyncHandler(async (req: Request, res: Response) => {
     orderBy: { completedAt: 'desc' },
   });
 
-  if (!session) return sendSuccess(res, null, 200, 'No phase 2 data found');
+  console.log('[getPhase2] query result', { userId: req.user.id, found: !!session, sessionId: session?.id });
+
+  if (!session) {
+    console.log('[getPhase2] No phase 2 data found');
+    return sendSuccess(res, null, 200, 'No phase 2 data found');
+  }
 
   let analysis: Record<string, unknown> = {};
-  try { analysis = JSON.parse(session.analysis); } catch { /* ignore */ }
+  try { 
+    analysis = JSON.parse(session.analysis); 
+    console.log('[getPhase2] parsed analysis', { analysis: Object.keys(analysis) });
+  } catch (e) { 
+    console.error('[getPhase2] failed to parse analysis JSON', { error: (e as any).message });
+  }
 
-  return sendSuccess(res, {
+  const result = {
     sessionId:         session.id,
     phase:             2,
     completionPercent: 100,
@@ -634,7 +768,10 @@ export const getPhase2 = asyncHandler(async (req: Request, res: Response) => {
     motivation:        (analysis as any).motivation       ?? null,
     baselinePayload:   (analysis as any).baselinePayload  ?? null,
     savedAt:           (analysis as any).savedAt          ?? session.completedAt,
-  }, 200, 'Phase 2 data retrieved');
+  };
+  
+  console.log('[getPhase2] returning data', { sessionId: result.sessionId, careerObjective: result.careerObjective });
+  return sendSuccess(res, result, 200, 'Phase 2 data retrieved');
 });
 
 // ── Phase 3: Adaptive AI Assessment ──────────────────────────────────────────

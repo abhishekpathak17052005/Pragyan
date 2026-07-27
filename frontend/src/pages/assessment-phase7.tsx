@@ -104,11 +104,21 @@ export default function AssessmentPhase7() {
     },
     onError: (err: Error) => {
       setError(err.message || "Failed to generate report");
-      toast({
-        title: "Generation Failed",
-        description: err.message || "Could not generate career report",
-        variant: "destructive",
-      });
+      
+      // Only show phase completion error if it's specifically about phases
+      if (err.message?.includes("Phase 1") || err.message?.includes("Phase 2")) {
+        toast({
+          title: "Complete previous phases",
+          description: "Please finish Phase 1-6 first.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Generation Failed",
+          description: err.message || "Could not generate career report",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -129,7 +139,8 @@ export default function AssessmentPhase7() {
         }
       })
       .catch((err: Error) => {
-        if (err.message?.includes("Phase")) {
+        // Only redirect if it's actually a phase completion error
+        if (err.message?.includes("Phase 1") || err.message?.includes("Phase 2")) {
           toast({
             title: "Complete previous phases",
             description: "Please finish Phase 1-6 first.",
@@ -137,7 +148,8 @@ export default function AssessmentPhase7() {
           });
           navigate("/assessments");
         } else {
-          // Generate new report on error
+          // For any other error (including 404 for non-existent report), generate new one
+          console.log('[Phase7] No existing report or error, generating new one', err.message);
           setPhase("generating");
           setTimeout(() => generateMutation.mutate(), 1000);
         }

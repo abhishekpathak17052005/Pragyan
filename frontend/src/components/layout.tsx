@@ -182,7 +182,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {Object.entries(groupedItems()).map(([section, items]) => (
             <div key={section}>
-              <div className="nav-section-title">{section}</div>
               {items.map((item, idx) => (
                 <NavLink 
                   key={`${section}-${idx}`}
@@ -194,42 +193,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
+
+        {/* Logout Button at Bottom */}
+        <div className="px-3 py-3 border-t transition-colors duration-200" style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}>
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 text-red-400 hover:bg-red-500/20"
+          >
+            <LogOut className="w-4.5 h-4.5 flex-shrink-0" style={{ width: 18, height: 18 }} />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col rounded-tl-[56px] overflow-hidden transition-all duration-300" style={{ backgroundColor: "#F7F8FC" }}>
-        {/* Header */}
-        <header 
-          className="h-20 px-8 flex items-center justify-end border-b shrink-0 transition-all duration-300"
-          style={{ 
-            backgroundColor: "#FFFFFF",
-            borderColor: "#E5E7EB"
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <button 
-              className="relative p-2 transition-all duration-300 rounded-full hover:bg-gray-100"
-              style={{ color: "#94A3B8" }}
-            >
-              <Bell className="w-6 h-6 transition-transform duration-300 hover:scale-110" />
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
-            </button>
-            <button
-              onClick={() => {
-                void logout().then(() => navigate("/auth"));
-              }}
-              className="p-2 transition-all duration-300 rounded-full hover:bg-gray-100"
-              style={{ color: "#94A3B8" }}
-            >
-              <LogOut className="w-5 h-5 transition-transform duration-300 hover:scale-110" />
-            </button>
-            <Avatar className="w-10 h-10 border transition-transform duration-300 hover:scale-110" style={{ borderColor: "#E5E7EB" }}>
-              <AvatarFallback className="font-medium transition-colors duration-300" style={{ backgroundColor: "#FF8C42", color: "#FFFFFF" }}>
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </header>
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-all duration-300">

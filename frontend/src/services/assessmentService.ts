@@ -428,7 +428,7 @@ export const assessmentService = {
   // ── Phase 1: Profile Collection ─────────────────────────────────────────────
 
   async savePhase1(data: Phase1Input): Promise<Phase1SaveResponse> {
-    return api.post<Phase1SaveResponse>("/assessment/phase-1", data);
+    return api.postWithRetry<Phase1SaveResponse>("/assessment/phase-1", data);
   },
 
   async getPhase1(): Promise<Phase1Data | null> {
@@ -436,13 +436,13 @@ export const assessmentService = {
   },
 
   async updatePhase1(data: Phase1Input): Promise<Phase1SaveResponse> {
-    return api.put<Phase1SaveResponse>("/assessment/phase-1", data);
+    return api.putWithRetry<Phase1SaveResponse>("/assessment/phase-1", data);
   },
 
   // ── Phase 2: Interest, Domain & Career Discovery ─────────────────────────────
 
   async savePhase2(data: Phase2Input): Promise<Phase2SaveResponse> {
-    return api.post<Phase2SaveResponse>("/assessment/phase-2", data);
+    return api.postWithRetry<Phase2SaveResponse>("/assessment/phase-2", data);
   },
 
   async getPhase2(): Promise<Phase2Data | null> {
@@ -450,7 +450,7 @@ export const assessmentService = {
   },
 
   async updatePhase2(data: Phase2Input): Promise<Phase2SaveResponse> {
-    return api.put<Phase2SaveResponse>("/assessment/phase-2", data);
+    return api.putWithRetry<Phase2SaveResponse>("/assessment/phase-2", data);
   },
 
   // ── Phase 3: Adaptive AI Assessment ──────────────────────────────────────────

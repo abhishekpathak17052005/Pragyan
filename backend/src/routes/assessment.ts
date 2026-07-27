@@ -27,25 +27,151 @@ router.get('/phase-2', authenticate, assessmentController.getPhase2);
 router.put('/phase-2', authenticate, assessmentController.savePhase2); // idempotent update
 
 // ── Phase 3: Adaptive AI Assessment ──────────────────────────────────────────
-router.post('/phase-3/start', authenticate, assessmentController.startPhase3);
+// Verify Phase 1 and 2 are completed before allowing Phase 3 start
+router.post('/phase-3/start', authenticate, async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  // Check Phase 1 and Phase 2 completion
+  const [phase1, phase2] = await Promise.all([
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 1 },
+      orderBy: { completedAt: 'desc' },
+    }),
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 2 },
+      orderBy: { completedAt: 'desc' },
+    }),
+  ]);
+
+  if (!phase1 || !phase2) {
+    return res.status(400).json({
+      success: false,
+      error: 'Phase 1 and 2 must be completed before starting Phase 3',
+      missingPhases: {
+        phase1: !phase1,
+        phase2: !phase2,
+      },
+    });
+  }
+
+  next();
+}, assessmentController.startPhase3);
 
 // ── Phase 4: Adaptive Domain-Specific Technical Assessment ───────────────────
-router.post('/phase-4/start', authenticate, assessmentController.startPhase4);
+// Verify Phase 2 is completed before allowing Phase 4 start
+router.post('/phase-4/start', authenticate, async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const phase2 = await prisma.assessmentSession.findFirst({
+    where: { userId: req.user.id, phase: 2 },
+    orderBy: { completedAt: 'desc' },
+  });
+
+  if (!phase2) {
+    return res.status(400).json({
+      success: false,
+      error: 'Phase 2 must be completed before starting Phase 4',
+    });
+  }
+
+  next();
+}, assessmentController.startPhase4);
 router.post('/phase-4/answer', authenticate, assessmentController.answerPhase4);
 router.post('/phase-4/submit', authenticate, assessmentController.submitPhase4);
 
 // ── Phase 5: AI Specialization Detection & Career Role Identification ────────
-router.post('/phase-5/start', authenticate, assessmentController.startPhase5);
+// Verify Phase 1 and 2 are completed before allowing Phase 5 start
+router.post('/phase-5/start', authenticate, async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const [phase1, phase2] = await Promise.all([
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 1 },
+      orderBy: { completedAt: 'desc' },
+    }),
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 2 },
+      orderBy: { completedAt: 'desc' },
+    }),
+  ]);
+
+  if (!phase1 || !phase2) {
+    return res.status(400).json({
+      success: false,
+      error: 'Phase 1 and 2 must be completed before starting Phase 5',
+      missingPhases: {
+        phase1: !phase1,
+        phase2: !phase2,
+      },
+    });
+  }
+
+  next();
+}, assessmentController.startPhase5);
 router.post('/phase-5/answer', authenticate, assessmentController.answerPhase5);
 router.post('/phase-5/submit', authenticate, assessmentController.submitPhase5);
 
 // ── Phase 6: AI Confidence Validation & Skill Gap Analysis ───────────────────
-router.post('/phase-6/start', authenticate, assessmentController.startPhase6);
+// Verify Phase 1 and 2 are completed before allowing Phase 6 start
+router.post('/phase-6/start', authenticate, async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const [phase1, phase2] = await Promise.all([
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 1 },
+      orderBy: { completedAt: 'desc' },
+    }),
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 2 },
+      orderBy: { completedAt: 'desc' },
+    }),
+  ]);
+
+  if (!phase1 || !phase2) {
+    return res.status(400).json({
+      success: false,
+      error: 'Phase 1 and 2 must be completed before starting Phase 6',
+      missingPhases: {
+        phase1: !phase1,
+        phase2: !phase2,
+      },
+    });
+  }
+
+  next();
+}, assessmentController.startPhase6);
 router.post('/phase-6/answer', authenticate, assessmentController.answerPhase6);
 router.post('/phase-6/validate', authenticate, assessmentController.validatePhase6);
 
 // ── Phase 7: AI Career Recommendation Engine & Final Report ──────────────────
-router.post('/phase-7/generate', authenticate, assessmentController.generatePhase7Report);
+// Verify Phase 1 and 2 are completed before allowing Phase 7
+router.post('/phase-7/generate', authenticate, async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+  const [phase1, phase2] = await Promise.all([
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 1 },
+      orderBy: { completedAt: 'desc' },
+    }),
+    prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 2 },
+      orderBy: { completedAt: 'desc' },
+    }),
+  ]);
+
+  if (!phase1 || !phase2) {
+    return res.status(400).json({
+      success: false,
+      error: 'Phase 1 and 2 must be completed before generating Phase 7 report',
+      missingPhases: {
+        phase1: !phase1,
+        phase2: !phase2,
+      },
+    });
+  }
+
+  next();
+}, assessmentController.generatePhase7Report);
 router.get('/report', authenticate, assessmentController.getPhase7Report);
 
 router.get('/start', assessmentController.startAssessment);

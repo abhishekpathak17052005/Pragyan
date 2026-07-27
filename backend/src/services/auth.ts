@@ -138,6 +138,25 @@ function buildUserSession(user: {
   currentCourse?: string | null;
   cgpa?: string | null;
   xp?: number;
+  gender?: string | null;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  currentStatus?: string | null;
+  collegeName?: string | null;
+  university?: string | null;
+  degree?: string | null;
+  branch?: string | null;
+  currentYear?: string | null;
+  expectedGraduationYear?: number | null;
+  programmingExperience?: string | null;
+  previouslyWorked?: boolean | null;
+  yearsOfExperience?: number | null;
+  currentCompany?: string | null;
+  currentRole?: string | null;
+  careerGoal?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }) {
@@ -170,6 +189,25 @@ function buildUserSession(user: {
     currentCourse: user.currentCourse,
     cgpa: user.cgpa,
     xp: user.xp ?? 0,
+    gender: user.gender,
+    country: user.country,
+    state: user.state,
+    city: user.city,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    currentStatus: user.currentStatus,
+    collegeName: user.collegeName,
+    university: user.university,
+    degree: user.degree,
+    branch: user.branch,
+    currentYear: user.currentYear,
+    expectedGraduationYear: user.expectedGraduationYear,
+    programmingExperience: user.programmingExperience,
+    previouslyWorked: user.previouslyWorked,
+    yearsOfExperience: user.yearsOfExperience,
+    currentCompany: user.currentCompany,
+    currentRole: user.currentRole,
+    careerGoal: user.careerGoal,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

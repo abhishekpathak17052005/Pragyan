@@ -214,9 +214,18 @@ export default function AssessmentPhase1() {
     experience,
   });
 
-  const { autoSave, isSaving } = useAutoSave<Phase1Input>(
+  const { autoSave, isSaving, error: autoSaveError } = useAutoSave<Phase1Input>(
     (data) => assessmentService.savePhase1(data),
-    2000
+    2000,
+    {
+      onError: (error) => {
+        toast({
+          title: "Auto-save failed",
+          description: error.message || "Failed to save your progress. Please check your connection.",
+          variant: "destructive",
+        });
+      },
+    }
   );
 
   // Trigger auto-save whenever form data changes (after step 1+)

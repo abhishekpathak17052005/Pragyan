@@ -9,6 +9,18 @@ const mongoUrl = process.env.DATABASE_URL;
 const mongoDbName = process.env.DB_NAME || 'Pragyan';
 
 export const getAdminDashboard = asyncHandler(async (_req: Request, res: Response) => {
+  // Check Redis cache first
+  const cacheKey = 'admin:dashboard';
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      console.log('[Cache] Admin dashboard hit from Redis');
+      return sendSuccess(res, JSON.parse(cached), 200, 'Admin dashboard analytics fetched (cached)');
+    }
+  } catch (cacheErr) {
+    console.warn('[Cache] Redis read failed, proceeding with DB query:', (cacheErr as Error).message);
+  }
+
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -53,7 +65,6 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     prisma.assessmentSession.count(),
     prisma.resource.count(),
     prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
-    // Fetch users created in last 6 months for the growth chart
     prisma.user.findMany({
       where: { createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true },
@@ -61,7 +72,6 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     }),
   ]);
 
-  // Build role distribution array
   const roleColors: Record<string, string> = {
     USER: '#3b82f6',
     ADMIN: '#ef4444',
@@ -74,7 +84,6 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     color: roleColors[g.role] ?? '#8b5cf6',
   }));
 
-  // Build monthly growth buckets (last 6 months)
   const monthBuckets: Record<string, number> = {};
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -90,7 +99,7 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     return { name: monthNames[parseInt(month, 10) - 1], users: count, month: `${year}-${month}` };
   });
 
-  return sendSuccess(res, {
+  const response = {
     totalUsers,
     activeUsers,
     currentUserCount,
@@ -102,7 +111,17 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
     resourceCount,
     roleDistribution,
     userGrowth,
-  }, 200, 'Admin dashboard analytics fetched');
+  };
+
+  // Cache for 5 minutes
+  try {
+    await redisClient.setex(cacheKey, 300, JSON.stringify(response));
+    console.log('[Cache] Admin dashboard cached to Redis');
+  } catch (cacheErr) {
+    console.warn('[Cache] Failed to cache dashboard:', (cacheErr as Error).message);
+  }
+
+  return sendSuccess(res, response, 200, 'Admin dashboard analytics fetched');
 });
 
 export const getUsers = asyncHandler(async (_req: Request, res: Response) => {

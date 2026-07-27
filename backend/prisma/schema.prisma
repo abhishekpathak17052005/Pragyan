@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -462,6 +462,7 @@ model User {
   @@index([accountStatus])
   @@index([isActive])
   @@index([organizationId])
+  @@index([updatedAt])  // For fetching recently active users
 }
 
 // Intelligence debug audit logs for admin access to sensitive intelligence payloads
@@ -925,6 +926,7 @@ model CareerRoadmap {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  @@index([updatedAt])  // For sorting careers by recency
 }
 
 model CareerRoadmapModule {
@@ -2148,7 +2150,7 @@ model ItJobRole {
 
   @@index([careerCluster])
   @@index([requiredSkills])
-  @@index([searchText], type: 'text')
+  @@index([searchText])
 }
 
 model SkillIndexEntry {
@@ -2156,7 +2158,5 @@ model SkillIndexEntry {
   skillName         String   @unique
   documentFrequency Int
   jobIds            String[]
-
-  @@index([skillName])
 }
 

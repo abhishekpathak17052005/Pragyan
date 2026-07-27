@@ -9,8 +9,6 @@ import {
   Target, MapPin, TrendingUp
 } from "lucide-react";
 
-const robotImg = "/opengraph.jpg";
-
 function RobotIllustration() {
   return (
     <div className="relative w-full h-full flex items-end justify-center">
@@ -36,12 +34,48 @@ function RobotIllustration() {
         <div className="absolute -bottom-2 left-4 w-0 h-0" style={{ borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "10px solid white" }} />
       </div>
 
-      {/* Robot image */}
-      <img
-        src={robotImg}
-        alt="Pragyan AI Robot"
-        className="robot-float w-full h-full object-contain drop-shadow-2xl"
-      />
+      {/* SVG Robot Illustration */}
+      <svg
+        viewBox="0 0 200 280"
+        className="robot-float w-full h-full drop-shadow-2xl"
+        style={{ maxWidth: '280px', maxHeight: '280px' }}
+      >
+        {/* Head */}
+        <rect x="60" y="40" width="80" height="70" rx="8" fill="#5B5FCF" />
+        
+        {/* Eyes */}
+        <circle cx="80" cy="60" r="8" fill="#fff" />
+        <circle cx="120" cy="60" r="8" fill="#fff" />
+        <circle cx="80" cy="60" r="4" fill="#5B5FCF" />
+        <circle cx="120" cy="60" r="4" fill="#5B5FCF" />
+        
+        {/* Smile */}
+        <path d="M 80 80 Q 100 90 120 80" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" />
+        
+        {/* Body */}
+        <rect x="50" y="115" width="100" height="80" rx="8" fill="#6B7EFF" />
+        
+        {/* Buttons on body */}
+        <circle cx="85" cy="145" r="5" fill="#00D9FF" />
+        <circle cx="100" cy="145" r="5" fill="#00D9FF" />
+        <circle cx="115" cy="145" r="5" fill="#00D9FF" />
+        
+        {/* Left arm */}
+        <rect x="20" y="135" width="30" height="20" rx="10" fill="#5B5FCF" />
+        <circle cx="20" cy="145" r="12" fill="#00D9FF" />
+        
+        {/* Right arm */}
+        <rect x="150" y="135" width="30" height="20" rx="10" fill="#5B5FCF" />
+        <circle cx="180" cy="145" r="12" fill="#00D9FF" />
+        
+        {/* Left leg */}
+        <rect x="70" y="195" width="18" height="50" rx="9" fill="#5B5FCF" />
+        <rect x="65" y="245" width="28" height="15" rx="7" fill="#00D9FF" />
+        
+        {/* Right leg */}
+        <rect x="112" y="195" width="18" height="50" rx="9" fill="#5B5FCF" />
+        <rect x="107" y="245" width="28" height="15" rx="7" fill="#00D9FF" />
+      </svg>
     </div>
   );
 }

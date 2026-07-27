@@ -29,7 +29,28 @@ export const getCareers = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getAdminCareers = asyncHandler(async (_req: Request, res: Response) => {
+  // Check Redis cache first
+  const cacheKey = 'admin:careers:list';
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      console.log('[Cache] Admin careers list hit from Redis');
+      return sendSuccess(res, JSON.parse(cached), 200, 'Admin roadmaps fetched successfully (cached)');
+    }
+  } catch (cacheErr) {
+    console.warn('[Cache] Redis read failed, proceeding with DB query:', (cacheErr as Error).message);
+  }
+
   const careers = await careerRoadmapService.listAdminCareers();
+  
+  // Cache for 10 minutes
+  try {
+    await redisClient.setex(cacheKey, 600, JSON.stringify(careers));
+    console.log('[Cache] Admin careers list cached to Redis');
+  } catch (cacheErr) {
+    console.warn('[Cache] Failed to cache careers:', (cacheErr as Error).message);
+  }
+
   return sendSuccess(res, careers, 200, 'Admin roadmaps fetched successfully');
 });
 

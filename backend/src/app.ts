@@ -75,6 +75,14 @@ function logParseResumeRequest(req: Request, _res: Response, next: () => void) {
 
 app.use(secureHeaders);
 
+// Disable ETags on API routes to prevent 304 responses with empty bodies
+// This ensures API responses are always delivered with full payloads
+app.use('/api/', (req, res, next) => {
+  res.set('Cache-Control', 'no-cache');
+  res.removeHeader('ETag');
+  next();
+});
+
 app.set('trust proxy', 1);
 
 app.use(
