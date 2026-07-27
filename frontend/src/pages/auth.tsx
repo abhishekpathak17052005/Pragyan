@@ -228,8 +228,7 @@ export default function AuthPage() {
                     <User className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
                     <Input 
                       name="fullName" 
-                      className="h-12 pl-11 rounded-lg" 
-                      style={{ borderColor: "#E2E8F0", "--tw-ring-color": "#7666F6" }}
+                      className="h-12 pl-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
                       placeholder="John Doe" 
                       required 
                     />
@@ -256,8 +255,7 @@ export default function AuthPage() {
                   <span className="mb-2.5 block text-sm font-semibold text-foreground">College Code</span>
                   <Input 
                     name="collegeCode" 
-                    className="h-12 rounded-lg" 
-                    style={{ borderColor: "#E2E8F0", "--tw-ring-color": "#7666F6" }}
+                    className="h-12 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
                     placeholder="e.g., IIT001" 
                   />
                 </label>
@@ -270,8 +268,7 @@ export default function AuthPage() {
                 <Mail className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
                 <Input 
                   name="email" 
-                  className="h-12 pl-11 rounded-lg" 
-                  style={{ borderColor: "#E2E8F0", "--tw-ring-color": "#7666F6" }}
+                  className="h-12 pl-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
                   type="email" 
                   placeholder="you@example.com" 
                   required 
@@ -285,8 +282,7 @@ export default function AuthPage() {
                 <LockKeyhole className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
                 <Input 
                   name="password" 
-                  className="h-12 pl-11 pr-11 rounded-lg" 
-                  style={{ borderColor: "#E2E8F0", "--tw-ring-color": "#7666F6" }}
+                  className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
                   type="password" 
                   placeholder="Enter your password" 
                   required 
@@ -302,8 +298,7 @@ export default function AuthPage() {
                   <LockKeyhole className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
                   <Input 
                     name="confirmPassword" 
-                    className="h-12 pl-11 pr-11 rounded-lg" 
-                    style={{ borderColor: "#E2E8F0", "--tw-ring-color": "#7666F6" }}
+                    className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
                     type="password" 
                     placeholder="Confirm your password" 
                     required 
