@@ -55,7 +55,6 @@ const allNavItems: NavItem[] = [
 
   // Shared account section
   { href: "/profile", label: "Profile", icon: User, section: "Account" },
-  { href: "/information", label: "Information", icon: Info, section: "Account" },
   { href: "/settings", label: "Settings", icon: Settings, section: "Account" },
 ];
 
