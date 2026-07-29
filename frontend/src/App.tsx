@@ -29,9 +29,7 @@ const Resources = lazy(() => import("@/pages/resources"));
 const Certificates = lazy(() => import("@/pages/certificates"));
 const Profile = lazy(() => import("@/pages/profile"));
 const Skills = lazy(() => import("@/pages/skills"));
-const Information = lazy(() => import("@/pages/information"));
-const EditInformation = lazy(() => import("@/pages/edit-information"));
-const CareerReadiness = lazy(() => import("@/pages/career-readiness"));
+// Information pages removed
 const Roadmap = lazy(() => import("@/pages/roadmap"));
 const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
 const Discovery = lazy(() => import("@/pages/discovery"));
@@ -98,8 +96,7 @@ function Router() {
                 <Route path="/home" component={Home} />
                 <Route path="/profile" component={Profile} />
                 <Route path="/profile/skills" component={Skills} />
-                <Route path="/information" component={Information} />
-                <Route path="/information/edit" component={EditInformation} />
+                {/* Information section removed */}
                 <Route path="/settings" component={SettingsPage} />
 
                 {/* Student Routes */}
@@ -158,11 +155,7 @@ function Router() {
                     <Certificates />
                   </StudentRoute>
                 </Route>
-                <Route path="/information/career-readiness">
-                  <StudentRoute>
-                    <CareerReadiness />
-                  </StudentRoute>
-                </Route>
+                {/* /information/career-readiness removed */}
                 <Route path="/assessment/discovery">
                   <StudentRoute>
                     <Discovery />

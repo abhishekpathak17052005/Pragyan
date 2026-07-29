@@ -229,7 +229,7 @@ export default function Settings() {
               <p className="text-sm text-muted-foreground mb-6">
                 Synchronized with your Assessment Engine and visible across the platform.
                 Also editable from{" "}
-                <Link href="/information/edit" className="text-primary underline underline-offset-2">Edit Profile</Link>.
+                <Link href="/settings" className="text-primary underline underline-offset-2">Edit Profile</Link>.
               </p>
 
               <SH>Personal</SH>

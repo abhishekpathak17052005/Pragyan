@@ -57,11 +57,9 @@ export default function Profile() {
   ];
 
   const quickActions = [
-    { icon: Pencil, label: "Edit Personal Info", href: "/information/edit" },
     { icon: FolderOpen, label: "Add New Project", href: "/profile" },
     { icon: Award, label: "Add Certification", href: "/resources/certificates" },
     { icon: Upload, label: "Upload Resume", href: "/profile" },
-    { icon: BarChart2, label: "View Career Readiness", href: "/information/career-readiness" },
   ];
 
   return (
@@ -118,7 +116,7 @@ export default function Profile() {
             </Button>
           </div>
 
-          <Link href="/information/edit">
+          <Link href="/settings">
             <Button variant="outline" className="rounded-xl px-6" data-testid="button-edit-profile">
               Edit Profile
             </Button>
