@@ -78,7 +78,7 @@ app.use(secureHeaders);
 
 // Disable ETags on API routes to prevent 304 responses with empty bodies
 // This ensures API responses are always delivered with full payloads
-app.use('/api/', (req, res, next) => {
+app.use('/api/', (_req, res, next) => {
   res.set('Cache-Control', 'no-cache');
   res.removeHeader('ETag');
   next();

@@ -240,7 +240,7 @@ export default function AICounselor() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 flex flex-col" style={{ height: "calc(100vh - 160px)" }}>
+    <div className="max-w-3xl mx-auto pb-12 flex flex-col" style={{ height: "calc(100vh - 70px)" }}>
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">AI Counselor</h1>

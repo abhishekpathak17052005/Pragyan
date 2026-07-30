@@ -7,7 +7,6 @@ import { generateCareerEnhancements } from '@/ai/resultEnhancer';
 import { sendSuccess, sendError } from '@/utils/response';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { prisma } from '@/lib/prisma';
-import { authService } from '@/services/auth';
 
 export const startAssessment = asyncHandler(async (req: Request, res: Response) => {
   const started = await adaptiveAssessmentService.startAssessment(req.user?.id);

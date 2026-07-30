@@ -28,7 +28,7 @@ function RobotIllustration() {
       `}</style>
 
       {/* "Hi!" speech bubble */}
-      <div className="hi-bubble absolute top-2 left-4 bg-white rounded-2xl px-4 py-2 shadow-lg pointer-events-none z-10" style={{ borderBottomLeftRadius: 4 }}>
+      <div className="hi-bubble absolute top-2 right-4 bg-white rounded-2xl px-4 py-2 shadow-lg pointer-events-none z-10" style={{ borderBottomLeftRadius: 4 }}>
         <span className="text-[#5B5FCF] font-bold text-sm">Hi! 👋</span>
         {/* bubble tail */}
         <div className="absolute -bottom-2 left-4 w-0 h-0" style={{ borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderTop: "10px solid white" }} />

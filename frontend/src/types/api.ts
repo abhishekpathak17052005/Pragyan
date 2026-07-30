@@ -284,6 +284,7 @@ export interface CareerRoadmapSummary {
   totalWeeks: number;
   approved?: boolean;
   status?: 'draft' | 'published' | string;
+  source?: 'career-roadmap' | 'legacy-roadmap' | string;
   createdAt?: string;
   updatedAt?: string;
 }

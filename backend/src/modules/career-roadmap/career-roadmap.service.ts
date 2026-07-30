@@ -19,7 +19,6 @@ import {
   UpdateTopicInput,
   UpdateWeekInput,
 } from './career-roadmap.validators';
-import { getIconForCareer } from './icon-mapping';
 import { ResourceType } from '@prisma/client';
 
 function slugify(value: string) {
@@ -218,6 +217,32 @@ function mapCareerSummary(career: {
   };
 }
 
+function mapLegacyRoadmapSummary(roadmap: {
+  id: string;
+  title: string;
+  description: string;
+  icon?: string | null;
+  createdAt: Date;
+  updatedAt?: Date;
+  weeks?: unknown[];
+}) {
+  return {
+    id: roadmap.id,
+    title: roadmap.title,
+    name: roadmap.title,
+    slug: roadmap.id,
+    description: roadmap.description || '',
+    thumbnail: null,
+    icon: roadmap.icon || null,
+    totalWeeks: roadmap.weeks?.length || 0,
+    approved: true,
+    status: 'published',
+    source: 'legacy-roadmap',
+    createdAt: roadmap.createdAt,
+    updatedAt: roadmap.updatedAt,
+  };
+}
+
 function mapCareerTree<T extends { modules: Array<{ weeks: unknown[] }> }>(
   career: T & Parameters<typeof mapCareerSummary>[0]
 ) {
@@ -296,7 +321,7 @@ export class CareerRoadmapService {
       userCareerTitle = user?.experience || null;
     }
 
-    const whereClause: any = { status: 'published' };
+    const whereClause: any = {}; // Removed status: 'published' filter to show all roadmaps
     
     // If user has a career role, filter to roadmaps that match that role
     if (userCareerTitle && userCareerTitle.trim() !== '') {
@@ -325,32 +350,53 @@ export class CareerRoadmapService {
   }
 
   async listAdminCareers() {
-    // Fetch paginated careers with minimal data (summary only)
-    const careers = await prisma.careerRoadmap.findMany({
-      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-      take: 10, // Pagination: limit to 10 careers per request
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        description: true,
-        thumbnail: true,
-        icon: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        modules: {
-          select: {
-            weeks: {
-              select: { id: true },
+    const [careers, legacyRoadmaps] = await Promise.all([
+      prisma.careerRoadmap.findMany({
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        take: 50,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          description: true,
+          thumbnail: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          modules: {
+            select: {
+              weeks: {
+                select: { id: true },
+              },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.roadmap.findMany({
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        take: 50,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          icon: true,
+          createdAt: true,
+          updatedAt: true,
+          weeks: {
+            select: { id: true },
+          },
+        },
+      }),
+    ]);
 
-    // Map to summary format (no nested tree)
-    return careers.map(mapCareerSummary);
+    return [
+      ...careers.map(mapCareerSummary),
+      ...legacyRoadmaps.map(mapLegacyRoadmapSummary),
+    ].sort((a, b) => {
+      const aDate = new Date(a.updatedAt || a.createdAt).getTime();
+      const bDate = new Date(b.updatedAt || b.createdAt).getTime();
+      return bDate - aDate;
+    });
   }
 
   async generateCareerRoadmap(input: GenerateCareerRoadmapInput) {
@@ -430,7 +476,7 @@ export class CareerRoadmapService {
 
   async getCareerBySlug(slug: string) {
     const career = await prisma.careerRoadmap.findFirst({
-      where: { slug, status: 'published' },
+      where: { slug }, // Removed status: 'published' filter
       orderBy: [{ updatedAt: 'desc' }],
       include: this.careerTreeInclude(),
     });
@@ -479,9 +525,6 @@ export class CareerRoadmapService {
   async createCareer(input: CreateCareerInput) {
     const title = getCareerTitle(input);
     const slug = await makeUniqueSlug(input.slug || title);
-    
-    // Auto-assign icon if not provided
-    const icon = input.icon || getIconForCareer(title);
 
     return prisma.careerRoadmap.create({
       data: {
@@ -489,7 +532,6 @@ export class CareerRoadmapService {
         slug,
         description: input.description,
         thumbnail: normalizeOptionalUrl(input.thumbnail),
-        icon,
         status: input.status || 'published',
       } as any,
     });
@@ -513,8 +555,17 @@ export class CareerRoadmapService {
   }
 
   async deleteCareer(id: string) {
-    await prisma.careerRoadmap.delete({ where: { id } });
-    return { id };
+    const career = await prisma.careerRoadmap.deleteMany({ where: { id } });
+    if (career.count > 0) {
+      return { id, source: 'career-roadmap', deleted: true };
+    }
+
+    const legacyRoadmap = await prisma.roadmap.deleteMany({ where: { id } });
+    if (legacyRoadmap.count > 0) {
+      return { id, source: 'legacy-roadmap', deleted: true };
+    }
+
+    return { id, deleted: false };
   }
 
   async publishCareer(id: string, published: boolean) {
