@@ -422,6 +422,12 @@ model User {
   accountSettings         Json?
   profileCompletion       Float?
 
+  // ── Security fields ──────────────────────────────────────────────────────
+  twoFactorEnabled        Boolean  @default(false)
+  twoFactorSecret         String?  // TOTP secret (base32)
+  // ── Account lifecycle ────────────────────────────────────────────────────
+  deleteRequestedAt       DateTime? // set when user requests account deletion
+
   // Relations
   refreshTokens           RefreshToken[]
   socialAccounts          SocialAccount[]
@@ -676,14 +682,20 @@ model Feedback {
   title               String
   description         String
   screenshotUrl       String?
+  imageUrl            String?
   priority            String   @default("Medium")
   status              String   @default("Open")
   allowContact        Boolean  @default(false)
   anonymous           Boolean  @default(false)
-  relatedAssessmentId String?
-  metadata            Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  adminReply               String?
+  adminNotes               String?
+  adminReplyReadAt         DateTime?    // null = user hasn't read the reply yet
+  confirmationEmailSent    Boolean      @default(false)
+  confirmationEmailSentAt  DateTime?    // when confirmation was successfully sent
+  relatedAssessmentId      String?
+  metadata                 Json?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@index([userId])
   @@index([category])

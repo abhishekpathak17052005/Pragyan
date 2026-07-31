@@ -133,14 +133,14 @@ export default function AdminFeedbackPage() {
   });
   const [search, setSearch] = useState('');
 
-  const { list, stats, updateStatus } = useAdminFeedback(filters);
+  const { list, stats, updateFeedback } = useAdminFeedback(filters);
 
   const feedbackList = (list.data as any)?.items ?? [];
   const pagination   = (list.data as any)?.pagination;
   const statsData    = stats.data;
 
-  const isUpdating   = updateStatus.isPending;
-  const updatingId   = (updateStatus.variables as any)?.id as string | undefined;
+  const isUpdating   = updateFeedback.isPending;
+  const updatingId   = (updateFeedback.variables as any)?.id as string | undefined;
 
   const applySearch = () =>
     setFilters((f) => ({ ...f, search: search || undefined, page: 1 }));
@@ -480,13 +480,15 @@ export default function AdminFeedbackPage() {
                   <StatusSelect
                     currentStatus={fb.status as FeedbackStatus}
                     feedbackId={fb.id}
-                    onUpdate={(id, status) => updateStatus.mutate({ id, status })}
+                    onUpdate={(id, status) => updateFeedback.mutate({ id, updates: { status } })}
                     isPending={isUpdating && updatingId === fb.id}
                   />
                 </div>
                 <FeedbackCard
                   feedback={fb}
                   showUser={true}
+                  onUpdate={(id, updates) => updateFeedback.mutate({ id, updates })}
+                  isUpdating={isUpdating && updatingId === fb.id}
                 />
               </div>
             ))}

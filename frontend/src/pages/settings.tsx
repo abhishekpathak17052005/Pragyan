@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useSearch } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import {
-  Bell, Lock, Palette, Globe, Shield,
+  Bell, Lock, Palette, Shield,
   Eye, EyeOff, Moon, Sun, Smartphone,
   CheckCircle2, ChevronRight, LogOut, Trash2, Download,
   MessageSquareDot,
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
 import { useToast } from "@/hooks/use-toast";
+import { TwoFactorSetupModal } from "@/components/TwoFactorSetupModal";
+import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 
 const FeedbackSettings = lazy(() => import("@/pages/settings/FeedbackSettings"));
 
@@ -51,7 +53,7 @@ function SH({ children }: { children: React.ReactNode }) {
 }
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, reloadUser } = useAuth();
   const { toast } = useToast();
 
   // Support deep-link: /settings?tab=feedback
@@ -62,7 +64,14 @@ export default function Settings() {
   );
 
   const [saved, setSaved] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // ── Notifications / Appearance / Privacy state ──────────────────────────────
   const [notifs, setNotifs] = useState({
@@ -76,26 +85,126 @@ export default function Settings() {
   });
   const [appearance, setAppearance] = useState({
     theme: "light" as "light" | "dark" | "system",
-    compactSidebar: false, animationsEnabled: true,
-    language: "English", timezone: "Asia/Kolkata (IST)",
+    compactSidebar: false,
+    animationsEnabled: true,
+    language: "English",
   });
 
   useEffect(() => {
-    if (user?.preferences && typeof user.preferences === "object" && !Array.isArray(user.preferences)) {
-      setAppearance((p) => ({ ...p, ...(user.preferences as object) }));
-    }
+    const preferencePayload = user?.preferences && typeof user.preferences === "object" && !Array.isArray(user.preferences)
+      ? (user.preferences as Record<string, unknown>)
+      : {};
+
+    if (Object.keys(preferencePayload).length === 0) return;
+
+    setAppearance((p) => ({
+      ...p,
+      theme: (preferencePayload.theme as typeof p.theme | undefined) || p.theme,
+      compactSidebar: typeof preferencePayload.compactSidebar === "boolean" ? preferencePayload.compactSidebar : p.compactSidebar,
+      animationsEnabled: typeof preferencePayload.animationsEnabled === "boolean" ? preferencePayload.animationsEnabled : p.animationsEnabled,
+      language: typeof preferencePayload.language === "string" ? preferencePayload.language : p.language,
+    }));
+
+    setPrivacy((p) => ({
+      ...p,
+      profilePublic: typeof preferencePayload.profilePublic === "boolean" ? preferencePayload.profilePublic : p.profilePublic,
+      showSkills: typeof preferencePayload.showSkills === "boolean" ? preferencePayload.showSkills : p.showSkills,
+      showCertificates: typeof preferencePayload.showCertificates === "boolean" ? preferencePayload.showCertificates : p.showCertificates,
+      shareWithEmployers: typeof preferencePayload.shareWithEmployers === "boolean" ? preferencePayload.shareWithEmployers : p.shareWithEmployers,
+      analyticsTracking: typeof preferencePayload.analyticsTracking === "boolean" ? preferencePayload.analyticsTracking : p.analyticsTracking,
+      showOnLeaderboard: typeof preferencePayload.showOnLeaderboard === "boolean" ? preferencePayload.showOnLeaderboard : p.showOnLeaderboard,
+    }));
+
+    setNotifs((p) => ({
+      ...p,
+      emailUpdates: typeof preferencePayload.emailUpdates === "boolean" ? preferencePayload.emailUpdates : p.emailUpdates,
+      milestoneAlerts: typeof preferencePayload.milestoneAlerts === "boolean" ? preferencePayload.milestoneAlerts : p.milestoneAlerts,
+      weeklyReport: typeof preferencePayload.weeklyReport === "boolean" ? preferencePayload.weeklyReport : p.weeklyReport,
+      aiTips: typeof preferencePayload.aiTips === "boolean" ? preferencePayload.aiTips : p.aiTips,
+      jobAlerts: typeof preferencePayload.jobAlerts === "boolean" ? preferencePayload.jobAlerts : p.jobAlerts,
+      communityDigest: typeof preferencePayload.communityDigest === "boolean" ? preferencePayload.communityDigest : p.communityDigest,
+      smsAlerts: typeof preferencePayload.smsAlerts === "boolean" ? preferencePayload.smsAlerts : p.smsAlerts,
+      pushBrowser: typeof preferencePayload.pushBrowser === "boolean" ? preferencePayload.pushBrowser : p.pushBrowser,
+    }));
   }, [user?.preferences]);
 
+  const preferencesPayload = { ...appearance, ...privacy, ...notifs } as Record<string, unknown>;
+
   const prefMutation = useMutation({
-    mutationFn: (prefs: object) => authService.updateProfile({ preferences: prefs } as any),
-    onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2000); },
+    mutationFn: () => authService.updateProfile({ preferences: preferencesPayload } as any),
+    onSuccess: async () => {
+      await reloadUser();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      toast({ title: "Preferences saved", description: "Your settings were updated successfully." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Unable to save preferences", description: error.message, variant: "destructive" });
+    },
   });
+
+  const passwordMutation = useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
+      authService.changePassword({ currentPassword, newPassword, confirmPassword: newPassword }),
+    onSuccess: async () => {
+      await reloadUser();
+      setPasswordSuccess(true);
+      setPasswordErrors({});
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      toast({ title: "Password updated", description: "Your password was changed successfully." });
+    },
+    onError: (error: Error) => {
+      setPasswordSuccess(false);
+      // Surface backend message as a field error on currentPassword if it's about "incorrect"
+      const msg = error.message || "Password update failed";
+      if (/incorrect|wrong|invalid/i.test(msg)) {
+        setPasswordErrors({ currentPassword: msg });
+      } else {
+        setPasswordErrors({ general: msg });
+      }
+      toast({ title: "Password update failed", description: msg, variant: "destructive" });
+    },
+  });
+
+  /** Validate password fields client-side before sending to backend */
+  const handlePasswordUpdate = () => {
+    const errs: Record<string, string> = {};
+    if (!passwordForm.currentPassword.trim()) {
+      errs.currentPassword = "Current password is required";
+    }
+    if (!passwordForm.newPassword) {
+      errs.newPassword = "New password is required";
+    } else {
+      if (passwordForm.newPassword.length < 8) errs.newPassword = "Password must be at least 8 characters";
+      else if (!/[A-Z]/.test(passwordForm.newPassword)) errs.newPassword = "Password must contain at least one uppercase letter";
+      else if (!/\d/.test(passwordForm.newPassword)) errs.newPassword = "Password must contain at least one number";
+      else if (!/[@$!%*?&]/.test(passwordForm.newPassword)) errs.newPassword = "Password must contain at least one special character (@$!%*?&)";
+    }
+    if (!passwordForm.confirmPassword) {
+      errs.confirmPassword = "Please confirm your new password";
+    } else if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errs.confirmPassword = "Passwords do not match";
+    }
+    if (passwordForm.currentPassword && passwordForm.newPassword && passwordForm.currentPassword === passwordForm.newPassword) {
+      errs.newPassword = "New password must be different from the current password";
+    }
+    if (Object.keys(errs).length > 0) {
+      setPasswordErrors(errs);
+      setPasswordSuccess(false);
+      return;
+    }
+    setPasswordErrors({});
+    setPasswordSuccess(false);
+    passwordMutation.mutate(passwordForm);
+  };
 
   const tn  = <K extends keyof typeof notifs>(k: K)  => setNotifs(p  => ({ ...p, [k]: !p[k] }));
   const tp  = <K extends keyof typeof privacy>(k: K) => setPrivacy(p => ({ ...p, [k]: !p[k] }));
 
   return (
     <div className="max-w-5xl mx-auto pb-12">
+      <TwoFactorSetupModal open={show2FAModal} onClose={() => setShow2FAModal(false)} />
+      <DeleteAccountModal  open={showDeleteModal} onClose={() => setShowDeleteModal(false)} />
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-foreground tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your profile, preferences, and account settings.</p>
@@ -185,12 +294,6 @@ export default function Settings() {
                   {["English","Hindi","Marathi","Tamil","Telugu"].map(l => <option key={l}>{l}</option>)}
                 </select>
               </Row>
-              <Row label="Timezone">
-                <select value={appearance.timezone} onChange={e => setAppearance(p => ({ ...p, timezone: e.target.value }))}
-                  className="px-3 py-2 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white" data-testid="select-timezone">
-                  {["Asia/Kolkata (IST)","America/New_York (EST)","Europe/London (GMT)","Asia/Dubai (GST)"].map(z => <option key={z}>{z}</option>)}
-                </select>
-              </Row>
             </div>
           )}
 
@@ -223,29 +326,124 @@ export default function Settings() {
               <p className="text-sm text-muted-foreground mb-6">Keep your account secure.</p>
               <SH>Password</SH>
               <div className="space-y-4 mb-6">
+                {/* Current Password */}
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">Current Password</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                    Current Password
+                  </label>
                   <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Enter current password"
-                      className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 pr-11" data-testid="input-current-password" />
-                    <button onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      placeholder="Enter current password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => {
+                        setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }));
+                        setPasswordErrors((p) => { const n = { ...p }; delete n.currentPassword; return n; });
+                      }}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 pr-11 ${passwordErrors.currentPassword ? "border-destructive ring-1 ring-destructive/30" : "border-border"}`}
+                      data-testid="input-current-password"
+                    />
+                    <button type="button" onClick={() => setShowCurrentPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {passwordErrors.currentPassword && (
+                    <p className="text-xs text-destructive mt-1">{passwordErrors.currentPassword}</p>
+                  )}
                 </div>
+
+                {/* New Password */}
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">New Password</label>
-                  <input type="password" placeholder="Enter new password" className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" data-testid="input-new-password" />
+                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      placeholder="Min 8 chars, uppercase, number, special char"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => {
+                        setPasswordForm((p) => ({ ...p, newPassword: e.target.value }));
+                        setPasswordErrors((p) => { const n = { ...p }; delete n.newPassword; return n; });
+                      }}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 pr-11 ${passwordErrors.newPassword ? "border-destructive ring-1 ring-destructive/30" : "border-border"}`}
+                      data-testid="input-new-password"
+                    />
+                    <button type="button" onClick={() => setShowNewPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {passwordErrors.newPassword && (
+                    <p className="text-xs text-destructive mt-1">{passwordErrors.newPassword}</p>
+                  )}
+                  {/* Strength hints */}
+                  {passwordForm.newPassword && !passwordErrors.newPassword && (
+                    <ul className="mt-1.5 space-y-0.5">
+                      {[
+                        { test: passwordForm.newPassword.length >= 8,        label: "At least 8 characters" },
+                        { test: /[A-Z]/.test(passwordForm.newPassword),       label: "One uppercase letter" },
+                        { test: /\d/.test(passwordForm.newPassword),          label: "One number" },
+                        { test: /[@$!%*?&]/.test(passwordForm.newPassword),   label: "One special character (@$!%*?&)" },
+                      ].map(({ test, label }) => (
+                        <li key={label} className={`text-xs flex items-center gap-1.5 ${test ? "text-green-600" : "text-muted-foreground"}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${test ? "bg-green-500" : "bg-muted-foreground/40"}`} />
+                          {label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
+
+                {/* Confirm Password */}
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">Confirm New Password</label>
-                  <input type="password" placeholder="Confirm new password" className="w-full px-4 py-3 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" data-testid="input-confirm-password" />
+                  <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm new password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => {
+                        setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }));
+                        setPasswordErrors((p) => { const n = { ...p }; delete n.confirmPassword; return n; });
+                      }}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 pr-11 ${passwordErrors.confirmPassword ? "border-destructive ring-1 ring-destructive/30" : "border-border"}`}
+                      data-testid="input-confirm-password"
+                    />
+                    <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {passwordErrors.confirmPassword && (
+                    <p className="text-xs text-destructive mt-1">{passwordErrors.confirmPassword}</p>
+                  )}
                 </div>
-                <Button className="rounded-xl px-6" data-testid="button-update-password">Update Password</Button>
+
+                {/* General backend error */}
+                {passwordErrors.general && (
+                  <p className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2.5">{passwordErrors.general}</p>
+                )}
+                {passwordSuccess && (
+                  <p className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> Password updated successfully.
+                  </p>
+                )}
+
+                <Button
+                  className="rounded-xl px-6"
+                  data-testid="button-update-password"
+                  onClick={handlePasswordUpdate}
+                  disabled={passwordMutation.isPending}
+                >
+                  {passwordMutation.isPending ? "Updating…" : "Update Password"}
+                </Button>
               </div>
               <SH>Two-Factor Authentication</SH>
               <Row label="Enable 2FA" desc="Add an extra layer of security using an authenticator app.">
-                <Button variant="outline" size="sm" className="rounded-xl" data-testid="button-setup-2fa">Set Up</Button>
+                <Button variant="outline" size="sm" className="rounded-xl" data-testid="button-setup-2fa" onClick={() => setShow2FAModal(true)}>
+                  Set Up
+                </Button>
               </Row>
             </div>
           )}
@@ -304,19 +502,19 @@ export default function Settings() {
                     <p className="text-sm font-semibold text-foreground flex items-center gap-2"><Trash2 className="w-4 h-4 text-destructive" /> Delete Account</p>
                     <p className="text-xs text-muted-foreground mt-0.5">Permanently delete account and all data. Cannot be undone.</p>
                   </div>
-                  <Button variant="outline" size="sm" className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10" data-testid="button-delete-account">Delete Account</Button>
+                  <Button variant="outline" size="sm" className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10" data-testid="button-delete-account" onClick={() => setShowDeleteModal(true)}>Delete Account</Button>
                 </div>
               </div>
             </div>
           )}
 
           {/* Generic save for notifications/appearance/privacy */}
-          {active !== "profile" && active !== "account" && active !== "security" && (
+          {active !== "account" && active !== "security" && (
             <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
               <p className={`text-sm font-medium transition-all ${saved ? "text-green-600 opacity-100" : "opacity-0"}`}>
                 <CheckCircle2 className="w-4 h-4 inline mr-1.5" /> Saved
               </p>
-              <Button onClick={() => prefMutation.mutate(appearance)} className="rounded-xl px-7"
+              <Button onClick={() => prefMutation.mutate()} className="rounded-xl px-7"
                 disabled={prefMutation.isPending} data-testid="button-save-settings">
                 {prefMutation.isPending ? "Saving…" : "Save Changes"}
               </Button>

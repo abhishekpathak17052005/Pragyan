@@ -16,6 +16,7 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
 } from "./validators";
+import { profileUpdateSchema } from "@/validators/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 
@@ -211,6 +212,15 @@ router.get(
   AuthController.getMe
 );
 
+router.patch(
+  "/me",
+  (req, _res, next) => {
+    req.body = validateInput(profileUpdateSchema, req.body);
+    next();
+  },
+  AuthController.updateProfile
+);
+
 router.post(
   "/change-password",
   (req, _res, next) => {
@@ -219,5 +229,14 @@ router.post(
   },
   AuthController.changePassword
 );
+
+// ── Account deletion ───────────────────────────────────────────────────────────
+router.delete("/account", AuthController.deleteAccount);
+
+// ── 2FA ───────────────────────────────────────────────────────────────────────
+router.get("/2fa/status",  AuthController.get2FAStatus);
+router.post("/2fa/setup",  AuthController.setup2FA);
+router.post("/2fa/enable", AuthController.enable2FA);
+router.post("/2fa/disable",AuthController.disable2FA);
 
 export default router;

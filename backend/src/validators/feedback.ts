@@ -51,17 +51,19 @@ export const createFeedbackSchema = z.object({
   priority: z.enum(FEEDBACK_PRIORITIES).default('Medium'),
 
   screenshotUrl: z.string().url('Invalid image URL').optional().nullable(),
+  imageUrl: z.string().url('Invalid image URL').optional().nullable(),
 
   allowContact: z.boolean().default(false),
-
   anonymous: z.boolean().default(false),
 });
 
-export const updateStatusSchema = z.object({
+export const updateFeedbackAdminSchema = z.object({
   status: z.enum(FEEDBACK_STATUSES, {
     errorMap: () => ({ message: 'Please provide a valid status' }),
-  }),
+  }).optional(),
+  adminReply: z.string().max(2000, 'Admin reply must be at most 2000 characters').optional().nullable(),
+  adminNotes: z.string().max(4000, 'Admin notes must be at most 4000 characters').optional().nullable(),
 });
 
 export type CreateFeedbackInput = z.infer<typeof createFeedbackSchema>;
-export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
+export type UpdateStatusInput = z.infer<typeof updateFeedbackAdminSchema>;

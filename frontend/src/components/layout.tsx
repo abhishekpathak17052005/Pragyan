@@ -9,6 +9,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { NotificationBell } from "@/components/NotificationCenter";
 
 type NavItem = {
   href: string;
@@ -60,11 +61,11 @@ const allNavItems: NavItem[] = [
 ];
 
 // NavLink Component
-function NavLink({ item, isActive, idx }: { item: NavItem; isActive: boolean; idx: number }) {
+function NavLink({ item, isActive, idx, compact }: { item: NavItem; isActive: boolean; idx: number; compact: boolean }) {
   return (
     <Link 
       href={item.href}
-      className="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 cursor-pointer"
+      className={`nav-item flex items-center gap-3 rounded-xl transition-all duration-300 cursor-pointer ${compact ? "px-2.5 py-2" : "px-3 py-2.5"}`}
       style={{
         background: isActive ? "linear-gradient(90deg, #4F46E5, #625EF8)" : "transparent",
         color: isActive ? "#FFFFFF" : "#94A3B8",
@@ -86,8 +87,8 @@ function NavLink({ item, isActive, idx }: { item: NavItem; isActive: boolean; id
         }
       }}
     >
-      <item.icon className="w-4.5 h-4.5 flex-shrink-0 transition-transform duration-300" style={{ width: 18, height: 18 }} />
-      <span className="text-sm transition-all duration-300">{item.label}</span>
+      <item.icon className="w-4.5 h-4.5 flex-shrink-0 transition-transform duration-300" style={{ width: compact ? 16 : 18, height: compact ? 16 : 18 }} />
+      <span className={`transition-all duration-300 ${compact ? "text-xs" : "text-sm"}`}>{item.label}</span>
     </Link>
   );
 }
@@ -96,6 +97,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [, navigate] = useLocation();
   const { user, logout } = useAuth();
+  const compactSidebar = Boolean((user?.preferences as Record<string, unknown> | undefined)?.compactSidebar);
 
   const initials = (user?.fullName || user?.email || "U")
     .split(/\s+/)
@@ -138,7 +140,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen w-full">
       {/* Sidebar */}
       <aside 
-        className="w-[220px] flex-shrink-0 flex flex-col transition-all duration-300"
+        className={`${compactSidebar ? "w-[190px]" : "w-[220px]"} flex-shrink-0 flex flex-col transition-all duration-300`}
         style={{ backgroundColor: "#0F172A" }}
       >
         <div className="p-6 flex items-center gap-2">
@@ -188,6 +190,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   item={item}
                   isActive={isActive(item.href, item.exact)}
                   idx={idx}
+                  compact={compactSidebar}
                 />
               ))}
             </div>
@@ -208,6 +211,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col rounded-tl-[56px] overflow-hidden transition-all duration-300" style={{ backgroundColor: "#F7F8FC" }}>
+
+        {/* Top bar with notification bell */}
+        <div className="flex items-center justify-end px-6 pt-4 pb-0 gap-2">
+          <NotificationBell />
+        </div>
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-all duration-300">

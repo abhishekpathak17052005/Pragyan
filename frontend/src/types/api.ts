@@ -31,7 +31,7 @@ export interface AuthUser {
   linkedin?: string | null;
   skills?: string[];
   interests?: string[];
-  preferences?: string[];
+  preferences?: Record<string, unknown> | string[];
   experience?: string | null;
   experienceType?: string | null;
   education?: string | null;
@@ -75,6 +75,14 @@ export interface AuthUser {
   currentCompany?: string | null;
   currentRole?: string | null;
   careerGoal?: string | null;
+  // ── Extended profile fields ───────────────────────────────────────────────
+  username?: string | null;
+  bio?: string | null;
+  githubUrl?: string | null;
+  portfolioWebsite?: string | null;
+  dateOfBirth?: string | null;
+  resume?: string | null;
+  preferredCareerDomain?: string | null;
 }
 
 export interface AuthSession {

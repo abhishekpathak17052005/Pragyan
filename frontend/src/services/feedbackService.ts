@@ -3,6 +3,7 @@
 import { api } from '@/services/apiClient';
 import type {
   Feedback,
+  FeedbackSubmitResponse,
   CreateFeedbackPayload,
   AdminFeedbackListResponse,
   AdminFeedbackFilters,
@@ -13,8 +14,8 @@ import type {
 export const feedbackService = {
   // ── User ────────────────────────────────────────────────────────────────────
 
-  submit(payload: CreateFeedbackPayload): Promise<Feedback> {
-    return api.post<Feedback>('/feedback', payload);
+  submit(payload: CreateFeedbackPayload): Promise<FeedbackSubmitResponse> {
+    return api.post<FeedbackSubmitResponse>('/feedback', payload);
   },
 
   listMine(): Promise<Feedback[]> {
@@ -27,6 +28,14 @@ export const feedbackService = {
 
   remove(id: string): Promise<null> {
     return api.delete<null>(`/feedback/${id}`);
+  },
+
+  markReplyRead(id: string): Promise<null> {
+    return api.post<null>(`/feedback/${id}/read-reply`, {});
+  },
+
+  getUnreadReplyCount(): Promise<{ count: number }> {
+    return api.get<{ count: number }>('/feedback/unread-count');
   },
 
   // ── Admin ───────────────────────────────────────────────────────────────────
@@ -45,8 +54,19 @@ export const feedbackService = {
     return api.get<AdminFeedbackListResponse>(`/feedback/admin/all${qs ? `?${qs}` : ''}`);
   },
 
+  adminUpdateFeedback(
+    id: string,
+    updates: {
+      status?: FeedbackStatus;
+      adminReply?: string | null;
+      adminNotes?: string | null;
+    },
+  ): Promise<Feedback> {
+    return api.patch<Feedback>(`/feedback/admin/${id}/status`, updates);
+  },
+
   adminUpdateStatus(id: string, status: FeedbackStatus): Promise<Feedback> {
-    return api.patch<Feedback>(`/feedback/admin/${id}/status`, { status });
+    return this.adminUpdateFeedback(id, { status });
   },
 
   adminGetStats(): Promise<FeedbackStats> {

@@ -5,6 +5,7 @@ import { MessageSquare, History, HelpCircle, ExternalLink } from 'lucide-react';
 import { FeedbackForm } from '@/components/feedback/FeedbackForm';
 import { FeedbackHistory } from '@/components/feedback/FeedbackHistory';
 import { FeedbackSuccessDialog } from '@/components/feedback/FeedbackSuccessDialog';
+import type { FeedbackSubmitResponse } from '@/types/feedback';
 
 type Tab = 'form' | 'history';
 
@@ -51,8 +52,12 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 export default function FeedbackSettings() {
   const [activeTab,  setActiveTab]  = useState<Tab>('form');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [submitResponse, setSubmitResponse] = useState<FeedbackSubmitResponse | null>(null);
 
-  const handleSuccess = () => setShowSuccess(true);
+  const handleSuccess = (response: FeedbackSubmitResponse) => {
+    setSubmitResponse(response);
+    setShowSuccess(true);
+  };
   const handleAnother = () => { setShowSuccess(false); setActiveTab('form'); };
   const handleHistory = () => { setShowSuccess(false); setActiveTab('history'); };
 
@@ -99,6 +104,8 @@ export default function FeedbackSettings() {
           <FeedbackSuccessDialog
             onSubmitAnother={handleAnother}
             onViewHistory={handleHistory}
+            emailSent={submitResponse?.emailSent}
+            referenceId={submitResponse?.id}
           />
         </div>
       ) : activeTab === 'form' ? (

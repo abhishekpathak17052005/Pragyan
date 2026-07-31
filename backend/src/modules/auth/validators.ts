@@ -176,7 +176,20 @@ export const otpSchema = z
 
 /**
  * Validator wrapper for middleware
+ * Throws a clean AppError (422) instead of a raw ZodError
  */
 export function validateInput<T>(schema: z.ZodSchema<T>, data: unknown): T {
-  return schema.parse(data);
+  const result = schema.safeParse(data);
+  if (result.success) return result.data;
+
+  const first = result.error.errors[0];
+  const message = first
+    ? `${first.path.length ? first.path.join('.') + ': ' : ''}${first.message}`
+    : 'Validation failed';
+
+  // Throw a plain Error with a clean message — caught by asyncHandler → errorHandler
+  const err = new Error(message) as any;
+  err.statusCode = 422;
+  err.isValidationError = true;
+  throw err;
 }

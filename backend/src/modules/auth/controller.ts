@@ -7,7 +7,10 @@ import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "@/middleware/errorHandler";
 import { meService, registerService, verifyEmailService, loginService } from "./services";
 import { OAuthService } from "./services/oauth.service";
+import { passwordService } from "./services/password.service";
 import { config } from "@/config/env";
+import { authService } from "@/services/auth";
+import { twoFactorService } from "@/services/twoFactor";
 
 export class AuthController {
   /**
@@ -171,8 +174,121 @@ export class AuthController {
    * Change password for authenticated user
    */
   static changePassword = asyncHandler(
-    async (_req: Request, _res: Response, _next: NextFunction) => {
-      throw new Error("Not implemented");
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Not authenticated",
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword: string;
+        newPassword: string;
+      };
+
+      const result = await passwordService.changePassword(
+        req.authUser.userId,
+        currentPassword,
+        newPassword
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result,
+      });
+    }
+  );
+
+  /**
+   * PATCH /api/auth/me
+   * Update the authenticated user's profile/settings
+   */
+  static updateProfile = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Not authenticated",
+        });
+      }
+
+      const updated = await authService.updateUserProfile(req.authUser.userId, req.body);
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: updated,
+      });
+    }
+  );
+
+  /**
+   * DELETE /api/auth/account (requires auth)
+   * Permanently delete the authenticated user's account.
+   */
+  static deleteAccount = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) {
+        return res.status(401).json({ success: false, message: 'Not authenticated' });
+      }
+      const { password } = req.body as { password?: string };
+      if (!password) {
+        return res.status(400).json({ success: false, message: 'Password is required to confirm account deletion' });
+      }
+      const result = await authService.deleteAccount(req.authUser.userId, password);
+      return res.status(200).json({ success: true, message: result.message, data: result });
+    }
+  );
+
+  /**
+   * GET /api/auth/2fa/status (requires auth)
+   */
+  static get2FAStatus = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+      const status = await twoFactorService.getStatus(req.authUser.userId);
+      return res.status(200).json({ success: true, data: status });
+    }
+  );
+
+  /**
+   * POST /api/auth/2fa/setup (requires auth)
+   * Returns a TOTP secret + QR code. Secret is NOT saved until /enable is called.
+   */
+  static setup2FA = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+      const result = await twoFactorService.generateSecret(req.authUser.userId);
+      return res.status(200).json({ success: true, data: result });
+    }
+  );
+
+  /**
+   * POST /api/auth/2fa/enable
+   * body: { secret, token }  — verify code then persist the secret.
+   */
+  static enable2FA = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+      const { secret, token } = req.body as { secret?: string; token?: string };
+      if (!secret || !token) return res.status(400).json({ success: false, message: 'secret and token are required' });
+      await twoFactorService.enable(req.authUser.userId, secret, token);
+      return res.status(200).json({ success: true, data: { enabled: true }, message: '2FA enabled successfully' });
+    }
+  );
+
+  /**
+   * POST /api/auth/2fa/disable
+   * body: { token }
+   */
+  static disable2FA = asyncHandler(
+    async (req: Request, res: Response, _next: NextFunction) => {
+      if (!req.authUser?.userId) return res.status(401).json({ success: false, message: 'Not authenticated' });
+      const { token } = req.body as { token?: string };
+      if (!token) return res.status(400).json({ success: false, message: 'token is required' });
+      await twoFactorService.disable(req.authUser.userId, token);
+      return res.status(200).json({ success: true, data: { enabled: false }, message: '2FA disabled successfully' });
     }
   );
 

@@ -119,3 +119,36 @@ export const getAuthConfig = asyncHandler(async (_req: Request, res: Response) =
     'Auth config fetched successfully'
   );
 });
+
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+  const { currentPassword, newPassword, confirmPassword } = req.body as {
+    currentPassword?: string; newPassword?: string; confirmPassword?: string;
+  };
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return sendError(res, 400, 'currentPassword, newPassword, and confirmPassword are required');
+  }
+  if (newPassword !== confirmPassword) {
+    return sendError(res, 400, 'New passwords do not match');
+  }
+
+  const result = await authService.changePassword(req.user.id, currentPassword, newPassword);
+  return sendSuccess(res, result, 200, result.message);
+});
+
+export const deleteAccount = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+  const { password } = req.body as { password?: string };
+  if (!password) return sendError(res, 400, 'Password is required to confirm account deletion');
+
+  const result = await authService.deleteAccount(req.user.id, password);
+
+  // Clear auth cookies
+  const { clearAuthCookies } = await import('@/security');
+  clearAuthCookies(res);
+
+  return sendSuccess(res, result, 200, result.message);
+});

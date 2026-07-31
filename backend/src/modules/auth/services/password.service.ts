@@ -3,7 +3,12 @@
  * Handles password reset and recovery flows
  */
 
+import { randomInt } from "crypto";
+import { prisma } from "@/lib/prisma";
 import type { ForgotPasswordInput, ResetPasswordInput } from "@/shared/auth";
+import { comparePasswords, hashPassword as hashPasswordUtil } from "@/utils/password";
+import { InvalidCredentialsError, WeakPasswordError } from "../errors";
+import { PasswordPolicy } from "../policies/password.policy";
 
 export class PasswordService {
   /**
@@ -23,29 +28,56 @@ export class PasswordService {
   /**
    * Change password (authenticated user)
    */
-  async changePassword(_userId: string, _currentPassword: string, _newPassword: string) {
-    throw new Error("Not implemented");
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const isCurrentPasswordValid = await this.verifyPassword(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new InvalidCredentialsError("Current password is incorrect");
+    }
+
+    PasswordPolicy.validate(newPassword);
+
+    const isSameAsCurrent = await this.verifyPassword(newPassword, user.password);
+    if (isSameAsCurrent) {
+      throw new WeakPasswordError("New password must be different from the current password");
+    }
+
+    const passwordHash = await this.hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: passwordHash, updatedAt: new Date() },
+    });
+
+    return { message: "Password changed successfully" };
   }
 
   /**
    * Helper: Generate OTP (internal)
    */
   protected generateOTP(): string {
-    throw new Error("Not implemented - generate 6-digit OTP");
+    return String(randomInt(100000, 1000000)).padStart(6, "0");
   }
 
   /**
    * Helper: Hash password (internal)
    */
-  protected async hashPassword(_password: string): Promise<string> {
-    throw new Error("Not implemented - use bcryptjs");
+  protected async hashPassword(password: string): Promise<string> {
+    return hashPasswordUtil(password);
   }
 
   /**
    * Helper: Verify password (internal)
    */
-  protected async verifyPassword(_plainPassword: string, _hash: string): Promise<boolean> {
-    throw new Error("Not implemented - use bcryptjs");
+  protected async verifyPassword(plainPassword: string, hash: string): Promise<boolean> {
+    return comparePasswords(plainPassword, hash);
   }
 }
 

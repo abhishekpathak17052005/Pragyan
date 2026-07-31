@@ -48,7 +48,10 @@ export const profileUpdateSchema = z.object({
   careerTrack: z.string().trim().max(120).optional(),
   skills: z.array(z.string().trim().min(1)).max(50).optional(),
   interests: z.array(z.string().trim().min(1)).max(50).optional(),
-  preferences: z.array(z.string().trim().min(1)).max(50).optional(),
+  preferences: z.union([
+    z.array(z.string().trim().min(1)).max(50),
+    z.record(z.unknown()),
+  ]).optional(),
   educationEntries: z.array(educationEntrySchema).max(20).optional(),
   experience: z.string().trim().max(1000).optional(),
   experienceType: z.enum(['experienced', 'fresher']).optional(),
