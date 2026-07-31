@@ -52,6 +52,7 @@ import { ensureIntelligenceIndexes } from '@/modules/intelligence/intelligence.i
 import notesRoutes from '@/modules/notes/notes.routes';
 import recruitmentRoutes from '@/modules/recruitment/recruitment.routes';
 import placementRoutes from '@/modules/placement/placement.routes';
+import auditLogRoutes from '@/routes/auditLog.routes';
 import { csvCareerDatasetService } from '@/services/csv-career-dataset';
 import path from 'path';
 import fs from 'fs';
@@ -174,6 +175,7 @@ app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/placement', placementRoutes);
+app.use('/api/admin/audit-logs', auditLogRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Development-only debug routes (do not expose in production)
