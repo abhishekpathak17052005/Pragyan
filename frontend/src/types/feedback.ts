@@ -30,19 +30,25 @@ export type FeedbackStatus   = (typeof FEEDBACK_STATUSES)[number];
 // ── Domain model ───────────────────────────────────────────────────────────────
 
 export interface Feedback {
-  id:            string;
-  userId?:       string;
-  category:      FeedbackCategory;
-  rating:        number;
-  title:         string;
-  description:   string;
-  priority:      FeedbackPriority;
-  status:        FeedbackStatus;
-  screenshotUrl: string | null;
-  allowContact:  boolean;
-  anonymous:     boolean;
-  createdAt:     string;
-  updatedAt:     string;
+  id:                       string;
+  userId?:                  string;
+  category:                 FeedbackCategory;
+  rating:                   number;
+  title:                    string;
+  description:              string;
+  priority:                 FeedbackPriority;
+  status:                   FeedbackStatus;
+  screenshotUrl:            string | null;
+  imageUrl?:                string | null;
+  allowContact:             boolean;
+  anonymous:                boolean;
+  adminReply?:              string | null;
+  adminNotes?:              string | null;
+  adminReplyReadAt?:        string | null;    // null = unread reply
+  confirmationEmailSent?:   boolean;          // did the confirmation email send?
+  confirmationEmailSentAt?: string | null;    // when it was sent
+  createdAt:                string;
+  updatedAt:                string;
   // only present on admin responses
   user?: {
     id:       string;
@@ -63,6 +69,12 @@ export interface CreateFeedbackPayload {
   screenshotUrl?: string | null;
   allowContact:  boolean;
   anonymous:     boolean;
+}
+
+/** Shape returned by POST /api/feedback — extends Feedback with email send status */
+export interface FeedbackSubmitResponse extends Feedback {
+  emailSent:   boolean;
+  emailError?: string;
 }
 
 export interface AdminFeedbackListResponse {

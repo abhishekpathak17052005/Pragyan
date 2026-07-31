@@ -14,16 +14,19 @@ const router = Router();
 // GET    /api/feedback/:id      — get one feedback item (own or admin)
 // DELETE /api/feedback/:id      — delete own feedback
 
-router.post(
-  '/',
-  authenticate,
-  rateLimiter,          // prevent spam: uses existing token-bucket limiter
-  feedbackController.createFeedback,
-);
+router.post('/', authenticate, rateLimiter, feedbackController.createFeedback);
 
-router.get('/me',  authenticate, feedbackController.listUserFeedback);
-router.get('/:id', authenticate, feedbackController.getFeedbackById);
-router.delete('/:id', authenticate, feedbackController.deleteFeedback);
+router.get('/me',             authenticate, feedbackController.listUserFeedback);
+router.get('/unread-count',   authenticate, feedbackController.getUnreadReplyCount);
+router.get('/:id',            authenticate, feedbackController.getFeedbackById);
+router.post('/:id/read-reply', authenticate, feedbackController.markReplyRead);
+router.delete('/:id',         authenticate, feedbackController.deleteFeedback);
+
+// Admin alias routes for /api/admin/feedback
+router.get('/admin/feedback', authenticate, authorize('ADMIN'), feedbackController.listAllFeedback);
+router.get('/admin/feedback/:id', authenticate, authorize('ADMIN'), feedbackController.getFeedbackById);
+router.patch('/admin/feedback/:id', authenticate, authorize('ADMIN'), feedbackController.updateFeedbackStatus);
+router.delete('/admin/feedback/:id', authenticate, authorize('ADMIN'), feedbackController.deleteFeedbackAdmin);
 
 // ── Admin-only routes ──────────────────────────────────────────────────────────
 // Mounted under /api/feedback/admin/...

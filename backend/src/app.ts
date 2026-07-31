@@ -31,6 +31,8 @@ import adminRoutes from '@/routes/admin';
 import profileRoutes from '@/routes/profile';
 import skillRoutes from '@/routes/skill';
 import feedbackRoutes from '@/routes/feedback';
+import notificationRoutes from '@/routes/notifications';
+
 import taskRoutes from '@/routes/task';
 import healthRoutes from '@/routes/health';
 import careerMatchingRoutes from '@/routes/career-matching';
@@ -43,6 +45,8 @@ import learningResourcesRoutes from '@/routes/learningResources';
 import xpRoutes from '@/routes/xp';
 import quizRoutes from '@/routes/quiz';
 import { redisRateLimiter } from '@/middleware/redisRateLimiter';
+import { authenticate, authorize } from '@/middleware/auth';
+import * as feedbackController from '@/controllers/feedback';
 import debugRoutes from '@/routes/debug';
 import adminDevRoutes from '@/routes/adminDev';
 import journeyRoutes from '@/modules/journey/journey.routes';
@@ -52,7 +56,6 @@ import { ensureIntelligenceIndexes } from '@/modules/intelligence/intelligence.i
 import notesRoutes from '@/modules/notes/notes.routes';
 import recruitmentRoutes from '@/modules/recruitment/recruitment.routes';
 import placementRoutes from '@/modules/placement/placement.routes';
-import auditLogRoutes from '@/routes/auditLog.routes';
 import { csvCareerDatasetService } from '@/services/csv-career-dataset';
 import path from 'path';
 import fs from 'fs';
@@ -152,6 +155,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.get('/api/admin/feedback', authenticate, authorize('ADMIN'), feedbackController.listAllFeedback);
+app.get('/api/admin/feedback/:id', authenticate, authorize('ADMIN'), feedbackController.getFeedbackById);
+app.patch('/api/admin/feedback/:id', authenticate, authorize('ADMIN'), feedbackController.updateFeedbackStatus);
+app.delete('/api/admin/feedback/:id', authenticate, authorize('ADMIN'), feedbackController.deleteFeedbackAdmin);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/roadmap', assessmentRoadmapRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
@@ -175,7 +183,6 @@ app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/placement', placementRoutes);
-app.use('/api/admin/audit-logs', auditLogRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Development-only debug routes (do not expose in production)
@@ -254,3 +261,4 @@ void (async () => {
 })();
 
 export default app;
+

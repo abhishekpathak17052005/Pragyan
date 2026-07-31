@@ -29,11 +29,17 @@ export function useFeedback() {
 
   const submit = useMutation({
     mutationFn: (payload: CreateFeedbackPayload) => feedbackService.submit(payload),
-    onSuccess: () => {
+    onSuccess: (response) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.mine });
+      
+      // Show success toast with email status
+      const emailStatus = response.emailSent
+        ? 'A confirmation email has been sent.'
+        : 'Confirmation email could not be sent, but your feedback was saved.';
+      
       toast({
         title:       '✅ Feedback submitted!',
-        description: 'Thank you for helping improve Pragyan.',
+        description: `Thank you for helping improve Pragyan. ${emailStatus}`,
       });
     },
     onError: (err: Error) => {
@@ -60,7 +66,14 @@ export function useFeedback() {
     },
   });
 
-  return { myFeedback, submit, remove };
+  const markReplyRead = useMutation({
+    mutationFn: (id: string) => feedbackService.markReplyRead(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.mine });
+    },
+  });
+
+  return { myFeedback, submit, remove, markReplyRead };
 }
 
 // ── Admin hook ─────────────────────────────────────────────────────────────────
@@ -81,12 +94,21 @@ export function useAdminFeedback(filters: AdminFeedbackFilters = {}) {
     staleTime: 1000 * 60,
   });
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: FeedbackStatus }) =>
-      feedbackService.adminUpdateStatus(id, status),
+  const updateFeedback = useMutation({
+    mutationFn: ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: {
+        status?: FeedbackStatus;
+        adminReply?: string | null;
+        adminNotes?: string | null;
+      };
+    }) => feedbackService.adminUpdateFeedback(id, updates),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['feedback', 'admin'] });
-      toast({ title: 'Status updated' });
+      toast({ title: 'Feedback updated' });
     },
     onError: (err: Error) => {
       toast({
@@ -97,5 +119,5 @@ export function useAdminFeedback(filters: AdminFeedbackFilters = {}) {
     },
   });
 
-  return { list, stats, updateStatus };
+  return { list, stats, updateFeedback };
 }

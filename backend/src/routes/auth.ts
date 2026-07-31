@@ -4,6 +4,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import * as authController from '@/controllers/auth';
 import * as oauthController from '@/controllers/oauth';
+import * as twoFactorController from '@/controllers/twoFactor';
 import { validate } from '@/middleware/validator';
 import {
   registerSchema,
@@ -57,5 +58,16 @@ router.get('/me', authenticate, authController.me);
 router.patch('/me', authenticate, validate(profileUpdateSchema), authController.updateProfile);
 router.post('/logout', authAttemptLimiter, validate(refreshTokenSchema), authController.logout);
 router.post('/refresh-token', authAttemptLimiter, validate(refreshTokenSchema), authController.refreshToken);
+
+// ── Authenticated account management ──────────────────────────────────────────
+router.post('/change-password', authenticate, authController.changePassword);
+router.delete('/account',       authenticate, authController.deleteAccount);
+
+// ── 2FA ───────────────────────────────────────────────────────────────────────
+router.get('/2fa/status',   authenticate, twoFactorController.getStatus);
+router.post('/2fa/setup',   authenticate, twoFactorController.setup);
+router.post('/2fa/enable',  authenticate, twoFactorController.enable);
+router.post('/2fa/disable', authenticate, twoFactorController.disable);
+router.post('/2fa/verify',  authenticate, twoFactorController.verify);
 
 export default router;

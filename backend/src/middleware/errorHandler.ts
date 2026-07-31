@@ -2,6 +2,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
+import { ZodError } from 'zod';
 import { AppError } from '@/utils/errors';
 import { sendError } from '@/utils/response';
 import { config } from '@/config/env';
@@ -44,6 +45,23 @@ export const errorHandler = (
       console.error(`[AppError] ${req.method} ${req.path} → ${err.statusCode}: ${err.message}`);
     }
     sendError(res, err.statusCode, isProduction && err.statusCode >= 500 ? 'Internal server error' : err.message, err.errors);
+    return;
+  }
+
+  // ZodError — extract the first human-readable message instead of dumping the full array
+  if (err instanceof ZodError) {
+    const first = err.errors[0];
+    const message = first
+      ? `${first.path.length ? first.path.join('.') + ': ' : ''}${first.message}`
+      : 'Validation failed';
+    console.warn(`[ZodError] ${req.method} ${req.path}: ${message}`);
+    sendError(res, 400, message);
+    return;
+  }
+
+  // Validation errors thrown by validateInput (have .isValidationError flag or .statusCode 422)
+  if ((err as any).isValidationError || (err as any).statusCode === 422) {
+    sendError(res, 422, err.message || 'Validation failed');
     return;
   }
 

@@ -1316,6 +1316,52 @@ export class AuthService {
       throw err;
     }
   }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User not found');
+
+    // OAuth-only accounts have a random password — disallow change
+    if (user.provider !== 'local' && !user.password) {
+      throw new BadRequestError('Password cannot be changed for OAuth accounts.');
+    }
+
+    const isValid = await comparePasswords(currentPassword, user.password);
+    if (!isValid) throw new UnauthorizedError('Current password is incorrect.');
+
+    const isSame = await comparePasswords(newPassword, user.password);
+    if (isSame) throw new BadRequestError('New password must be different from the current password.');
+
+    // Policy: min 8 chars
+    if (newPassword.length < 8) throw new BadRequestError('New password must be at least 8 characters.');
+
+    const hashed = await hashPassword(newPassword);
+    await prisma.user.update({ where: { id: userId }, data: { password: hashed, updatedAt: new Date() } });
+
+    // Invalidate all refresh tokens to log out other sessions
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+
+    return { message: 'Password updated successfully.' };
+  }
+
+  async deleteAccount(userId: string, password: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError('User not found');
+
+    // Verify password for local accounts
+    if (user.provider === 'local') {
+      const isValid = await comparePasswords(password, user.password);
+      if (!isValid) throw new UnauthorizedError('Password is incorrect. Account not deleted.');
+    }
+
+    // Revoke all tokens first
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+
+    // Delete the user (Prisma onDelete: Cascade handles related records)
+    await prisma.user.delete({ where: { id: userId } });
+
+    return { message: 'Account permanently deleted.' };
+  }
 }
 
 export const authService = new AuthService();

@@ -37,6 +37,9 @@ export const authService = {
   updateProfile(input: Partial<AuthUser>) {
     return api.patch<AuthUser>("/auth/me", input);
   },
+  changePassword(input: { currentPassword: string; newPassword: string; confirmPassword: string }) {
+    return api.post<AuthMessageResponse>("/auth/change-password", input);
+  },
   logout(refreshToken?: string) {
     return api
       .post("/auth/logout", refreshToken ? { refreshToken } : {}, { skipRefresh: true })

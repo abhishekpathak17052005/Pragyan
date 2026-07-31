@@ -10,7 +10,7 @@ interface FeedbackHistoryProps {
 }
 
 export function FeedbackHistory({ onNewFeedback }: FeedbackHistoryProps) {
-  const { myFeedback, remove } = useFeedback();
+  const { myFeedback, remove, markReplyRead } = useFeedback();
 
   const isLoading = myFeedback.isLoading;
   const items     = myFeedback.data ?? [];
@@ -77,6 +77,7 @@ export function FeedbackHistory({ onNewFeedback }: FeedbackHistoryProps) {
           feedback={fb}
           onDelete={(id) => remove.mutate(id)}
           isDeleting={remove.isPending && deletingId === fb.id}
+          onMarkReplyRead={(id) => markReplyRead.mutate(id)}
         />
       ))}
 

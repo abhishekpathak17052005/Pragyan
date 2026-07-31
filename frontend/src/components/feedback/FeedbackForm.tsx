@@ -14,8 +14,10 @@ import {
   type CreateFeedbackPayload,
 } from '@/types/feedback';
 
+import type { FeedbackSubmitResponse } from '@/types/feedback';
+
 interface FeedbackFormProps {
-  onSuccess: () => void;
+  onSuccess: (response: FeedbackSubmitResponse) => void;
 }
 
 interface FormState {
@@ -138,10 +140,10 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
     };
 
     submit.mutate(payload, {
-      onSuccess: () => {
+      onSuccess: (response) => {
         setForm(INITIAL);
         setErrors({});
-        onSuccess();
+        onSuccess(response);
       },
     });
   };
