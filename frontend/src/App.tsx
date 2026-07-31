@@ -96,6 +96,10 @@ function Router() {
                 <Route path="/home" component={Home} />
                 <Route path="/profile" component={Profile} />
                 <Route path="/profile/skills" component={Skills} />
+                {/* /feedback is now inside Settings → redirect any stale links */}
+                <Route path="/feedback">
+                  {() => { window.location.replace("/settings?tab=feedback"); return null; }}
+                </Route>
                 {/* Information section removed */}
                 <Route path="/settings" component={SettingsPage} />
 
@@ -295,6 +299,11 @@ function Router() {
                 <Route path="/admin/roadmaps">
                   <AdminRoute>
                     <AdminRoadmapManager />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/feedback">
+                  <AdminRoute>
+                    <AdminFeedbackPage />
                   </AdminRoute>
                 </Route>
                 <Route path="/admin/company/:companyId">

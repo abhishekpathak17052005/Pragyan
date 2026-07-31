@@ -1,6 +1,7 @@
 import type { DomainQuestion } from '@/types/hybridAssessment';
+import { mergeTrendingTechQuestions } from './trendingTechDomainQuestions';
 
-export const DOMAIN_QUESTION_BANK: Record<string, DomainQuestion[]> = {
+const BASE_DOMAIN_QUESTION_BANK: Record<string, DomainQuestion[]> = {
   'mern-stack': [
     { id: 'mern-html', domain: 'mern-stack', skill: 'HTML/CSS', question: 'How comfortable are you with HTML and CSS?', type: 'rating' },
     { id: 'mern-js', domain: 'mern-stack', skill: 'JavaScript', question: 'Rate your JavaScript ES6+ proficiency.', type: 'rating' },
@@ -106,6 +107,10 @@ export const DOMAIN_QUESTION_BANK: Record<string, DomainQuestion[]> = {
     { id: 'skills-weakness-mitigation', domain: 'skills-discovery', skill: 'Weakness Mitigation', question: 'Rate how clear your plan is to prevent weaknesses from blocking your goals.', type: 'rating' },
   ],
 };
+
+export const DOMAIN_QUESTION_BANK: Record<string, DomainQuestion[]> = mergeTrendingTechQuestions(
+  BASE_DOMAIN_QUESTION_BANK
+);
 
 export function getDomainQuestions(domain: string): DomainQuestion[] {
   const key = String(domain || 'general').toLowerCase().trim();
