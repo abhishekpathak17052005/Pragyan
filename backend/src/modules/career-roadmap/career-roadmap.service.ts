@@ -335,7 +335,6 @@ export class CareerRoadmapService {
         slug: true,
         description: true,
         thumbnail: true,
-        icon: true,
         status: true,
         createdAt: true,
         updatedAt: true,

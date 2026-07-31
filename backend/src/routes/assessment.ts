@@ -54,7 +54,7 @@ router.post('/phase-3/start', authenticate, async (req, res, next) => {
     });
   }
 
-  next();
+  return next();
 }, assessmentController.startPhase3);
 
 // ── Phase 4: Adaptive Domain-Specific Technical Assessment ───────────────────
@@ -74,7 +74,7 @@ router.post('/phase-4/start', authenticate, async (req, res, next) => {
     });
   }
 
-  next();
+  return next();
 }, assessmentController.startPhase4);
 router.post('/phase-4/answer', authenticate, assessmentController.answerPhase4);
 router.post('/phase-4/submit', authenticate, assessmentController.submitPhase4);
@@ -106,7 +106,7 @@ router.post('/phase-5/start', authenticate, async (req, res, next) => {
     });
   }
 
-  next();
+  return next();
 }, assessmentController.startPhase5);
 router.post('/phase-5/answer', authenticate, assessmentController.answerPhase5);
 router.post('/phase-5/submit', authenticate, assessmentController.submitPhase5);
@@ -138,7 +138,7 @@ router.post('/phase-6/start', authenticate, async (req, res, next) => {
     });
   }
 
-  next();
+  return next();
 }, assessmentController.startPhase6);
 router.post('/phase-6/answer', authenticate, assessmentController.answerPhase6);
 router.post('/phase-6/validate', authenticate, assessmentController.validatePhase6);
@@ -170,7 +170,7 @@ router.post('/phase-7/generate', authenticate, async (req, res, next) => {
     });
   }
 
-  next();
+  return next();
 }, assessmentController.generatePhase7Report);
 router.get('/report', authenticate, assessmentController.getPhase7Report);
 

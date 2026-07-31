@@ -30,6 +30,7 @@ import recommendationsRoutes from '@/routes/recommendations';
 import adminRoutes from '@/routes/admin';
 import profileRoutes from '@/routes/profile';
 import skillRoutes from '@/routes/skill';
+import feedbackRoutes from '@/routes/feedback';
 import taskRoutes from '@/routes/task';
 import healthRoutes from '@/routes/health';
 import careerMatchingRoutes from '@/routes/career-matching';
@@ -77,7 +78,7 @@ app.use(secureHeaders);
 
 // Disable ETags on API routes to prevent 304 responses with empty bodies
 // This ensures API responses are always delivered with full payloads
-app.use('/api/', (req, res, next) => {
+app.use('/api/', (_req, res, next) => {
   res.set('Cache-Control', 'no-cache');
   res.removeHeader('ETag');
   next();
@@ -149,6 +150,7 @@ app.use('/api/recommendations/intelligence', aiApiRateLimiter, aiUsageLimiter, a
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/skills', skillRoutes);
+app.use('/api/feedback', feedbackRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/roadmap', assessmentRoadmapRoutes);
 app.use('/api/roadmaps', roadmapRoutes);

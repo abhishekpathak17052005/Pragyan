@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '@/middleware/errorHandler';
 import { sendPaginated, sendSuccess } from '@/utils/response';
 import { careerRoadmapService } from './career-roadmap.service';
+import { redisClient } from '@/lib/redis';
 import {
   createCareerSchema,
   createDaySchema,
@@ -45,7 +46,7 @@ export const getAdminCareers = asyncHandler(async (_req: Request, res: Response)
   
   // Cache for 10 minutes
   try {
-    await redisClient.setex(cacheKey, 600, JSON.stringify(careers));
+    await redisClient.set(cacheKey, JSON.stringify(careers), 600);
     console.log('[Cache] Admin careers list cached to Redis');
   } catch (cacheErr) {
     console.warn('[Cache] Failed to cache careers:', (cacheErr as Error).message);

@@ -4,7 +4,7 @@ import {
   CheckSquare, BookOpen, User, Info, 
   Settings, Grid, Sparkles, Bell, LogOut,
   Briefcase, Users, TrendingUp, FileText,
-  BarChart3, Building2, Activity
+  BarChart3, Building2, Activity, MessageSquare
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -51,6 +51,7 @@ const allNavItems: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users, roles: ["ADMIN"], section: "Administration" },
   { href: "/admin/organizations", label: "Organizations", icon: Building2, roles: ["ADMIN"], section: "Administration" },
   { href: "/admin/roadmaps", label: "Roadmaps", icon: Map, roles: ["ADMIN"], section: "Administration" },
+  { href: "/admin/feedback", label: "Feedback", icon: MessageSquare, roles: ["ADMIN"], section: "Administration" },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: Activity, roles: ["ADMIN"], section: "Administration" },
 
   // Shared account section

@@ -37,6 +37,7 @@ const InterestDiscovery = lazy(() => import("@/pages/interest-discovery"));
 const CapabilityDiscovery = lazy(() => import("@/pages/capability-discovery"));
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
 const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-final"));
+const AdminFeedbackPage   = lazy(() => import("@/pages/admin-feedback"));
 const AdminDashboard = lazy(() => import("@/pages/admin-dashboard"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
 const AdminOrganizations = lazy(() => import("@/pages/admin-organizations"));
@@ -96,6 +97,10 @@ function Router() {
                 <Route path="/home" component={Home} />
                 <Route path="/profile" component={Profile} />
                 <Route path="/profile/skills" component={Skills} />
+                {/* /feedback is now inside Settings → redirect any stale links */}
+                <Route path="/feedback">
+                  {() => { window.location.replace("/settings?tab=feedback"); return null; }}
+                </Route>
                 {/* Information section removed */}
                 <Route path="/settings" component={SettingsPage} />
 
@@ -295,6 +300,11 @@ function Router() {
                 <Route path="/admin/roadmaps">
                   <AdminRoute>
                     <AdminRoadmapManager />
+                  </AdminRoute>
+                </Route>
+                <Route path="/admin/feedback">
+                  <AdminRoute>
+                    <AdminFeedbackPage />
                   </AdminRoute>
                 </Route>
                 <Route path="/admin/company/:companyId">

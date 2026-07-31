@@ -115,7 +115,7 @@ export const getAdminDashboard = asyncHandler(async (_req: Request, res: Respons
 
   // Cache for 5 minutes
   try {
-    await redisClient.setex(cacheKey, 300, JSON.stringify(response));
+    await redisClient.set(cacheKey, JSON.stringify(response), 300);
     console.log('[Cache] Admin dashboard cached to Redis');
   } catch (cacheErr) {
     console.warn('[Cache] Failed to cache dashboard:', (cacheErr as Error).message);
