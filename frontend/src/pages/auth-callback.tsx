@@ -38,16 +38,13 @@ export default function AuthCallback() {
           localStorage.setItem("refreshToken", refreshToken);
         }
 
-        // Fetch user profile using relative /api URL by default
-        // This works from any origin (localhost, Render, staging, etc)
-        const backendUrl = (
-          import.meta.env.VITE_BACKEND_URL ||
-          import.meta.env.VITE_API_URL ||
-          ""
-        ).replace(/\/$/, "");
-        const apiUrl = backendUrl
-          ? `${backendUrl}/api/auth/me`
-          : "/api/auth/me";
+        // Fetch user profile
+        // Development: uses relative /api (proxied by Vite)
+        // Production: direct to Render backend
+        const apiUrl =
+          import.meta.env.DEV
+            ? "/api/auth/me"
+            : "https://pragyan-ai-nmeu.onrender.com/api/auth/me";
         
         const response = await fetch(apiUrl, {
           headers: {
