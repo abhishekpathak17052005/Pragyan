@@ -1,10 +1,15 @@
 import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 import type { ApiResponse, AuthSession, PaginatedResponse } from "@/types/api";
 
+// Use relative /api URL by default so it works from any origin (including Render, localhost, etc)
+// This allows the same build to work in development, staging, and production
+// Environment variables VITE_API_URL or VITE_BACKEND_URL can override if needed
 const rawApiUrl = (
-  (import.meta.env.VITE_API_URL as string | undefined) ??
-  (import.meta.env.VITE_BACKEND_URL as string | undefined)
-)?.replace(/\/$/, "") || "";
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  ""
+).replace(/\/$/, "");
+
 const API_BASE_URL = rawApiUrl
   ? rawApiUrl.replace(/\/api\/?$/, "") + "/api"
   : "/api";

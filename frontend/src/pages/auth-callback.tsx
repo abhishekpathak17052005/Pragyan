@@ -38,13 +38,16 @@ export default function AuthCallback() {
           localStorage.setItem("refreshToken", refreshToken);
         }
 
-        // Fetch user profile
+        // Fetch user profile using relative /api URL by default
+        // This works from any origin (localhost, Render, staging, etc)
         const backendUrl = (
           import.meta.env.VITE_BACKEND_URL ||
           import.meta.env.VITE_API_URL ||
-          "http://localhost:3000"
+          ""
         ).replace(/\/$/, "");
-        const apiUrl = `${backendUrl}/api/auth/me`;
+        const apiUrl = backendUrl
+          ? `${backendUrl}/api/auth/me`
+          : "/api/auth/me";
         
         const response = await fetch(apiUrl, {
           headers: {
