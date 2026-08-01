@@ -532,6 +532,7 @@ export class AssessmentService {
       selectedOptions,
       analysis,
     };
+  }
 
   async getAssessmentHistory(userId: string) {
     const sessions = await prisma.assessmentSession.findMany({
