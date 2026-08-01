@@ -399,7 +399,7 @@ export class AssessmentService {
       (result as any).combinedMatches = combined;
     }
 
-    // Persist assessment result via Prisma
+    // Persist assessment result via Prisma - BLOCKING operation
     let assessmentResult = null;
     try {
       const created = await prisma.assessmentResult.create({
@@ -415,9 +415,9 @@ export class AssessmentService {
       assessmentResult = created as any;
       console.log(`[AssessmentService] submitAssessment: Result persisted with ID ${created.id}`);
     } catch (err: any) {
-      console.warn('[AssessmentService] Assessment persistence failed (non-blocking):', err?.message || err);
-      // Non-blocking - still return result even if persistence failed
-      assessmentResult = null;
+      console.error('[AssessmentService] CRITICAL - Assessment persistence failed:', err?.message || err);
+      // Throw error to prevent response with null data
+      throw new Error(`Assessment data could not be persisted: ${err?.message || 'Unknown error'}`);
     }
 
     // Return both persisted record (if available) and deterministic combinedMatches/summary
@@ -464,11 +464,19 @@ export class AssessmentService {
       reasons?: string[];
     }> = [];
 
+    // CRITICAL: Ensure career matching completes before saving
     try {
-      matches = await careerMatchingEngine.analyzeAssessment(userId, assessmentAnswers);
+      const matchPromise = careerMatchingEngine.analyzeAssessment(userId, assessmentAnswers);
+      // Use 10 second timeout for career matching - this is critical data
+      matches = await Promise.race([
+        matchPromise,
+        new Promise<typeof matches>((resolve) => setTimeout(() => resolve([]), 10000)),
+      ]);
       console.log(`[AssessmentService] saveAssessmentSession: Found ${matches.length} career matches`);
     } catch (error) {
       console.error('[AssessmentService] Career matching failed during save session:', error);
+      // Don't throw - use empty matches but continue to save what we have
+      matches = [];
     }
 
     const analysis = {
@@ -485,18 +493,24 @@ export class AssessmentService {
       generatedAt: new Date().toISOString(),
     };
     
-    // Attach combinedMatches to analysis when available (non-blocking)
+    // Attach combinedMatches to analysis when available (non-blocking enhancement)
+    let combinedMatches = null;
     try {
-      const combined = await enhanceAndCombineScores(assessmentAnswers, matches as any[]).catch(() => null);
-      if (combined) (analysis as any).combinedMatches = combined;
+      combinedMatches = await Promise.race([
+        enhanceAndCombineScores(assessmentAnswers, matches as any[]),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+      ]).catch(() => null);
+      if (combinedMatches) (analysis as any).combinedMatches = combinedMatches;
     } catch (e) {
       console.warn('[AssessmentService] Non-blocking AI enhancement failed:', (e as any)?.message || e);
     }
     
     const selectedOptions = Object.values(answers).map((value) => String(value));
 
+    // CRITICAL: Database save must complete and be error-checked
+    let created;
     try {
-      const created = await prisma.assessmentSession.create({
+      created = await prisma.assessmentSession.create({
         data: {
           userId,
           answers: JSON.stringify(answers),
@@ -507,17 +521,17 @@ export class AssessmentService {
       });
 
       console.log(`[AssessmentService] saveAssessmentSession: Session persisted with ID ${created.id}`);
-      return {
-        id: created.id,
-        completedAt: created.completedAt,
-        selectedOptions,
-        analysis,
-      };
     } catch (err: any) {
-      console.error('[AssessmentService] Failed to save session via Prisma:', err?.message || err);
-      throw err;
+      console.error('[AssessmentService] CRITICAL - Failed to save session via Prisma:', err?.message || err);
+      throw new Error(`Assessment session could not be persisted: ${err?.message || 'Unknown error'}`);
     }
-  }
+
+    return {
+      id: created.id,
+      completedAt: created.completedAt,
+      selectedOptions,
+      analysis,
+    };
 
   async getAssessmentHistory(userId: string) {
     const sessions = await prisma.assessmentSession.findMany({

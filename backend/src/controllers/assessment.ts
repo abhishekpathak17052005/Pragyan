@@ -204,61 +204,59 @@ export const submitAdaptiveAssessment = asyncHandler(async (req: Request, res: R
   })();
 
   // Persist Phase 3 cognitive results to assessmentSession so Phase 4 can read them.
-  // We upsert: if a phase-3 record already exists (created by startPhase3), update it;
-  // otherwise create a new one. This is fire-and-forget — don't block the response.
-  void (async () => {
-    try {
-      const userId = req.user!.id;
-      const cognitiveAnalysis = {
-        phase: 3,
-        sessionId: String(sessionId),
-        confidence: result.confidence ?? 0,
-        topMatches: (result.topMatches || []).slice(0, 5).map((m: any) => ({
-          career: m.career,
-          score: m.score ?? m.match ?? 0,
-          matchedSkills: m.matchedSkills ?? [],
-        })),
-        traits: result.summary?.scores ?? {},
-        careerScores: Object.fromEntries(
-          (result.topMatches || []).slice(0, 10).map((m: any) => [m.career, m.score ?? m.match ?? 0])
-        ),
-        strengths: result.summary?.strengths ?? [],
-        weaknesses: result.summary?.weaknesses ?? [],
-        completedAt: new Date().toISOString(),
-      };
+  // BLOCKING: This must complete before response is sent
+  try {
+    const userId = req.user!.id;
+    const cognitiveAnalysis = {
+      phase: 3,
+      sessionId: String(sessionId),
+      confidence: result.confidence ?? 0,
+      topMatches: (result.topMatches || []).slice(0, 5).map((m: any) => ({
+        career: m.career,
+        score: m.score ?? m.match ?? 0,
+        matchedSkills: m.matchedSkills ?? [],
+      })),
+      traits: result.summary?.scores ?? {},
+      careerScores: Object.fromEntries(
+        (result.topMatches || []).slice(0, 10).map((m: any) => [m.career, m.score ?? m.match ?? 0])
+      ),
+      strengths: result.summary?.strengths ?? [],
+      weaknesses: result.summary?.weaknesses ?? [],
+      completedAt: new Date().toISOString(),
+    };
 
-      // Check if a phase-3 record already exists from startPhase3
-      const existing = await prisma.assessmentSession.findFirst({
-        where: { userId, phase: 3 },
-        orderBy: { completedAt: 'desc' },
+    // Check if a phase-3 record already exists from startPhase3
+    const existing = await prisma.assessmentSession.findFirst({
+      where: { userId, phase: 3 },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    if (existing) {
+      await prisma.assessmentSession.update({
+        where: { id: existing.id },
+        data: {
+          analysis: JSON.stringify(cognitiveAnalysis),
+          completedAt: new Date(),
+        },
       });
-
-      if (existing) {
-        await prisma.assessmentSession.update({
-          where: { id: existing.id },
-          data: {
-            analysis: JSON.stringify(cognitiveAnalysis),
-            completedAt: new Date(),
-          },
-        });
-      } else {
-        await prisma.assessmentSession.create({
-          data: {
-            userId,
-            phase: 3,
-            answers: JSON.stringify({ phase: 3, sessionId: String(sessionId) }),
-            selectedOptions: [],
-            analysis: JSON.stringify(cognitiveAnalysis),
-            completedAt: new Date(),
-          },
-        });
-      }
-
-      console.log('[Phase 3] Cognitive results persisted to assessmentSession for user', userId);
-    } catch (err) {
-      console.error('[Phase 3] Failed to persist cognitive results:', (err as any)?.message || err);
+    } else {
+      await prisma.assessmentSession.create({
+        data: {
+          userId,
+          phase: 3,
+          answers: JSON.stringify({ phase: 3, sessionId: String(sessionId) }),
+          selectedOptions: [],
+          analysis: JSON.stringify(cognitiveAnalysis),
+          completedAt: new Date(),
+        },
+      });
     }
-  })();
+
+    console.log('[Phase 3] Cognitive results persisted to assessmentSession for user', userId);
+  } catch (err) {
+    console.error('[Phase 3] Failed to persist cognitive results:', (err as any)?.message || err);
+    return sendError(res, 500, 'Failed to save phase 3 assessment data');
+  }
 
   try {
     const { contextAggregator } = await import('@/services/contextAggregator');

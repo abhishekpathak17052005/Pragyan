@@ -79,11 +79,6 @@ export class LoginService {
       
       throw new Error("Invalid credentials");
     }
-    console.log("User found:", !!user);
-
-if (user) {
-  console.log("Database email:", user.email);
-}
 
     // Step 2: Email verification check
     // Only STUDENT users require email verification
@@ -196,24 +191,14 @@ if (user) {
     }
 
     // Step 4: Verify password
-   // Step 4: Verify password
+    const passwordMatch = await bcrypt.compare(
+      input.password,
+      user.password
+    );
 
-console.log("========== LOGIN DEBUG ==========");
-console.log("Input email:", input.email);
-console.log("Input password:", input.password);
-console.log("Stored hash:", user.password);
-
-const passwordMatch = await bcrypt.compare(
-  input.password,
-  user.password
-);
-
-console.log("Password match:", passwordMatch);
-console.log("=================================");
-
-if (!passwordMatch) {
-  // existing code...
-}
+    if (!passwordMatch) {
+      // existing code...
+    }
     // Step 5: Generate access token (JWT)
     // Use native role directly (STUDENT, RECRUITER, PLACEMENT_OFFICER, ADMIN)
     const accessToken = generateAccessToken({

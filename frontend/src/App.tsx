@@ -36,8 +36,7 @@ const Discovery = lazy(() => import("@/pages/discovery"));
 const InterestDiscovery = lazy(() => import("@/pages/interest-discovery"));
 const CapabilityDiscovery = lazy(() => import("@/pages/capability-discovery"));
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
-const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-final"));
-const AdminFeedbackPage   = lazy(() => import("@/pages/admin-feedback"));
+const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-optimized"));
 const AdminDashboard = lazy(() => import("@/pages/admin-dashboard"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
 const AdminOrganizations = lazy(() => import("@/pages/admin-organizations"));
@@ -300,11 +299,6 @@ function Router() {
                 <Route path="/admin/roadmaps">
                   <AdminRoute>
                     <AdminRoadmapManager />
-                  </AdminRoute>
-                </Route>
-                <Route path="/admin/feedback">
-                  <AdminRoute>
-                    <AdminFeedbackPage />
                   </AdminRoute>
                 </Route>
                 <Route path="/admin/company/:companyId">
