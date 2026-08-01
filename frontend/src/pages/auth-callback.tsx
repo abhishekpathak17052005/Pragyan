@@ -39,7 +39,14 @@ export default function AuthCallback() {
         }
 
         // Fetch user profile
-        const response = await fetch("http://localhost:3000/api/auth/me", {
+        const backendUrl = (
+          import.meta.env.VITE_BACKEND_URL ||
+          import.meta.env.VITE_API_URL ||
+          "http://localhost:3000"
+        ).replace(/\/$/, "");
+        const apiUrl = `${backendUrl}/api/auth/me`;
+        
+        const response = await fetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
