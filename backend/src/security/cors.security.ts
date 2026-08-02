@@ -2,8 +2,12 @@ import cors from 'cors';
 
 import { config } from '@/config/env';
 
+// DEBUG: Log allowed origins on startup
+console.log('CORS Debug - Allowed origins:', config.cors.allowedOrigins);
+
 export const secureCors = cors({
   origin: (origin, callback) => {
+    console.log('CORS Debug - Incoming request origin:', origin);
     if (!origin || config.cors.allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
