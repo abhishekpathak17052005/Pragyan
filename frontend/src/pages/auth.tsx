@@ -72,6 +72,13 @@ export default function AuthPage() {
           return;
         }
 
+        // Validate college code for students
+        if (role === "STUDENT" && !collegeCode) {
+          setError("College code is required for students");
+          setSubmitting(false);
+          return;
+        }
+
         // Build register request with all required fields
         const registerData: any = {
           fullName,
@@ -86,11 +93,15 @@ export default function AuthPage() {
           registerData.collegeCode = collegeCode;
         }
 
-        const response = await authService.register(registerData);
-        // After signup, user needs to verify email before login
-        // Show success message and switch to login mode
-        setMode("signin");
-        setError(""); // Clear any errors
+        try {
+          const response = await authService.register(registerData);
+          // After signup, user needs to verify email before login
+          // Show success message and switch to login mode
+          setMode("signin");
+          setError(""); // Clear any errors
+        } catch (registerErr) {
+          throw registerErr;
+        }
       } else {
         console.log("Calling AuthContext.login with:", { email, password });
         const response = await login({ email, password });
@@ -247,11 +258,14 @@ export default function AuthPage() {
 
                 {/* College code for students */}
                 <label className="block">
-                  <span className="mb-2.5 block text-sm font-semibold text-foreground">College Code</span>
+                  <span className="mb-2.5 block text-sm font-semibold text-foreground">
+                    College Code <span style={{ color: "#EF4444" }}>*</span>
+                  </span>
                   <Input 
                     name="collegeCode" 
                     className="h-12 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
                     placeholder="e.g., IIT001" 
+                    required={role === "STUDENT"}
                   />
                 </label>
               </>
@@ -284,6 +298,11 @@ export default function AuthPage() {
                 />
                 <Eye className="absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 cursor-pointer transition-colors" style={{ color: "#94A3B8" }} />
               </div>
+              {isSignup && (
+                <p className="mt-2 text-xs" style={{ color: "#94A3B8" }}>
+                  Must be 8+ characters with uppercase, lowercase, number, and special character (@$!%*?&)
+                </p>
+              )}
             </label>
 
             {isSignup && (
