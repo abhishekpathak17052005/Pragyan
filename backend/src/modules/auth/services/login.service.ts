@@ -197,7 +197,30 @@ export class LoginService {
     );
 
     if (!passwordMatch) {
-      // existing code...
+      // Record failed attempt
+      LoginThrottleService.recordFailedAttempt(user.email);
+      
+      // Log failed login attempt with structured reason
+      await auditRepository.log({
+        targetUserId: user.id,
+        performedByUserId: user.id,
+        organizationId: user.organizationId || "",
+        action: "LOGIN",
+        status: "FAILURE",
+        failureReason: LoginFailureReason.INVALID_PASSWORD,
+        ipAddress,
+        userAgent,
+      });
+      
+      await publishLoginFailed({
+        email: user.email,
+        reason: "Invalid password",
+        ipAddress,
+        userAgent,
+        timestamp: new Date(),
+      });
+      
+      throw new Error("Invalid credentials");
     }
     // Step 5: Generate access token (JWT)
     // Use native role directly (STUDENT, RECRUITER, PLACEMENT_OFFICER, ADMIN)
