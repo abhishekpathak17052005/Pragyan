@@ -389,7 +389,8 @@ export class AuthService {
           providerId: null,
           avatar: null,
           emailVerified: false,
-          role: 'USER',
+          role: input.role || 'STUDENT',
+          userRole: (input.role as any) || 'STUDENT',
           age: null,
           location: null,
           phone: null,
@@ -444,7 +445,7 @@ export class AuthService {
       const accessToken = generateAccessToken({
         id: created.id,
         email: created.email,
-        role: 'USER',
+        role: (created.role as 'USER' | 'ADMIN') || 'USER',
       });
 
       return {

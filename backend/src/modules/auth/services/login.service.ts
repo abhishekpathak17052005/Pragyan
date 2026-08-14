@@ -7,7 +7,7 @@
  * 2. Find user by email
  * 3. Check email verified (emailVerifiedAt is not null)
  * 4. Check account status = ACTIVE
- * 5. Verify password hash
+ * 5. Verify password hash (supports Argon2id and BCrypt with auto-rehashing)
  * 6. Generate JWT access token
  * 7. Generate and store refresh token
  * 8. Audit log
@@ -18,15 +18,15 @@
  * Each service has single responsibility: login, register, verify-email, etc.
  */
 
-import bcrypt from "bcryptjs";
-import crypto from "crypto";
-import { randomUUID } from "crypto";
 import type { LoginInput, AuthResponse, AuthUser } from "@/shared/auth";
 import { userRepository, auditRepository, refreshTokenRepository } from "../repository";
 import { LoginFailureReason } from "../repository/audit.repository";
 import { publishLoginSuccess, publishLoginFailed } from "../events";
 import { LoginThrottleService } from "./login-throttle.service";
 import { generateAccessToken } from "@/utils/jwt";
+import { PasswordUtil } from "@/utils/password";
+import crypto from "crypto";
+import { randomUUID } from "crypto";
 
 export class LoginService {
   /**
@@ -77,7 +77,8 @@ export class LoginService {
         timestamp: new Date(),
       });
       
-      throw new Error("Invalid credentials");
+      // Generic error message (don't reveal if email exists or not)
+      throw new Error("Invalid email or password");
     }
 
     // Step 2: Email verification check
@@ -191,12 +192,10 @@ export class LoginService {
     }
 
     // Step 4: Verify password
-    const passwordMatch = await bcrypt.compare(
-      input.password,
-      user.password
-    );
+    // Supports both Argon2id (new) and BCrypt (legacy) hashes
+    const passwordMatches = await PasswordUtil.verify(input.password, user.password);
 
-    if (!passwordMatch) {
+    if (!passwordMatches) {
       // Record failed attempt
       LoginThrottleService.recordFailedAttempt(user.email);
       
@@ -220,7 +219,22 @@ export class LoginService {
         timestamp: new Date(),
       });
       
-      throw new Error("Invalid credentials");
+      // Generic error message (don't reveal if email exists)
+      throw new Error("Invalid email or password");
+    }
+
+    // Step 4a: Auto-rehash if password was hashed with BCrypt (migration to Argon2id)
+    if (PasswordUtil.needsRehash(user.password)) {
+      try {
+        const newHash = await PasswordUtil.hash(input.password);
+        await userRepository.update(user.id, { password: newHash });
+        console.log(`[Password Migration] User ${user.id} password rehashed to Argon2id`);
+      } catch (rehashError) {
+        console.warn(
+          `[Password Migration] Failed to rehash password for user ${user.id}: ${rehashError}`
+        );
+        // Don't fail login if rehashing fails - continue with old hash
+      }
     }
     // Step 5: Generate access token (JWT)
     // Use native role directly (STUDENT, RECRUITER, PLACEMENT_OFFICER, ADMIN)

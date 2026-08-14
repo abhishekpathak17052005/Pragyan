@@ -64,6 +64,16 @@ router.post(
   AuthController.refresh
 );
 
+// Alias used by the frontend client
+router.post(
+  "/refresh-token",
+  (req, _res, next) => {
+    req.body = validateInput(refreshTokenSchema, req.body);
+    next();
+  },
+  AuthController.refresh
+);
+
 router.post(
   "/forgot-password",
   (req, _res, next) => {
@@ -71,6 +81,18 @@ router.post(
     next();
   },
   AuthController.forgotPassword
+);
+
+router.post(
+  "/verify-reset-token",
+  (req, _res, next) => {
+    req.body = {
+      token: String(req.body.token || ""),
+      email: String(req.body.email || ""),
+    };
+    next();
+  },
+  AuthController.verifyResetToken
 );
 
 router.post(
@@ -163,6 +185,16 @@ router.post(
 
 // ── Account deletion ───────────────────────────────────────────────────────────
 router.delete("/account", AuthController.deleteAccount);
+
+// ── Password Management ────────────────────────────────────────────────────────
+router.post(
+  "/change-password",
+  (req, _res, next) => {
+    req.body = validateInput(changePasswordSchema, req.body);
+    next();
+  },
+  AuthController.changePassword
+);
 
 // ── 2FA ───────────────────────────────────────────────────────────────────────
 router.get("/2fa/status",  AuthController.get2FAStatus);

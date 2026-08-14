@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { ArrowRight, Eye, LockKeyhole, Mail, Sparkles, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { PasswordStrengthMeter, type PasswordStrengthResult } from "@/components/auth/PasswordStrengthMeter";
 
 type AuthMode = "signin" | "signup";
 
@@ -44,6 +45,9 @@ export default function AuthPage() {
   const [selectedRole, setSelectedRole] = useState("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrengthResult | null>(null);
+  const [formPassword, setFormPassword] = useState("");
+  const [formConfirmPassword, setFormConfirmPassword] = useState("");
 
   const isSignup = mode === "signup";
 
@@ -51,11 +55,13 @@ export default function AuthPage() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") || "");
-    const password = String(formData.get("password") || "");
-    const confirmPassword = String(formData.get("confirmPassword") || "");
     const fullName = String(formData.get("fullName") || "");
     const role = selectedRole;
     const collegeCode = String(formData.get("collegeCode") || "");
+    
+    // Use controlled state values for passwords
+    const password = formPassword;
+    const confirmPassword = formConfirmPassword;
 
     setError("");
     setSuccess("");
@@ -98,7 +104,20 @@ export default function AuthPage() {
         navigate(redirectUrl);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed");
+      let errorMessage = "Authentication failed";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "object" && err !== null) {
+        // Check for API error responses
+        const apiError = err as any;
+        if (apiError.response?.data?.message) {
+          errorMessage = apiError.response.data.message;
+        } else if (apiError.message) {
+          errorMessage = apiError.message;
+        }
+      }
+      console.error("Auth error:", err);
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -280,6 +299,8 @@ export default function AuthPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   required
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
                 />
                 <button
                   type="button"
@@ -290,10 +311,17 @@ export default function AuthPage() {
                   <Eye className="h-5 w-5 cursor-pointer transition-colors" style={{ color: showPassword ? "#7666F6" : "#94A3B8" }} />
                 </button>
               </div>
+              
+              {/* Password Strength Meter */}
               {isSignup && (
-                <p className="mt-2 text-xs" style={{ color: "#94A3B8" }}>
-                  Must be at least 6 characters.
-                </p>
+                <PasswordStrengthMeter
+                  password={formPassword}
+                  onPasswordChange={setFormPassword}
+                  onStrengthChange={setPasswordStrength}
+                  showSuggestions={true}
+                  showRequirements={true}
+                  showGenerateButton={true}
+                />
               )}
             </label>
 
@@ -307,6 +335,8 @@ export default function AuthPage() {
                     className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirm your password"
+                    value={formConfirmPassword}
+                    onChange={(e) => setFormConfirmPassword(e.target.value)}
                     required
                   />
                   <button
