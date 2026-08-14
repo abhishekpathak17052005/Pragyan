@@ -1,5 +1,4 @@
 import { FormEvent, useMemo, useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { ArrowRight, Eye, LockKeyhole, Mail, Sparkles, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ type AuthMode = "signin" | "signup";
  * After login, users are redirected to their role-specific dashboard
  */
 const ROLE_REDIRECTS: Record<string, string> = {
+  USER: "/dashboard",
   STUDENT: "/dashboard",
   RECRUITER: "/company/dashboard",
   PLACEMENT_OFFICER: "/placement/dashboard",
@@ -20,8 +20,8 @@ const ROLE_REDIRECTS: Record<string, string> = {
 
 export default function AuthPage() {
   const [location, navigate] = useLocation();
-  const { isAuthenticated, userRole } = useAuth();
-  
+  const { isAuthenticated, userRole, login, register } = useAuth();
+
   // Auto-redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && userRole) {
@@ -35,11 +35,15 @@ export default function AuthPage() {
       ? "signup"
       : "signin";
   }, [location]);
-  
+
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const { login, register } = useAuth();
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Controlled state for role so JSX can react to selection
+  const [selectedRole, setSelectedRole] = useState("STUDENT");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const isSignup = mode === "signup";
 
@@ -50,65 +54,47 @@ export default function AuthPage() {
     const password = String(formData.get("password") || "");
     const confirmPassword = String(formData.get("confirmPassword") || "");
     const fullName = String(formData.get("fullName") || "");
-    const role = String(formData.get("role") || "STUDENT");
+    const role = selectedRole;
     const collegeCode = String(formData.get("collegeCode") || "");
 
-    console.log("===== FORM SUBMIT DEBUG =====");
-    console.log("Email:", email);
-    console.log("Password:", password);
-    console.log("Password length:", password.length);
-    console.log("Role:", role);
-    console.log("Full form data:", { email, password, fullName, role, collegeCode });
-    console.log("=============================");
-
     setError("");
+    setSuccess("");
     setSubmitting(true);
     try {
       if (isSignup) {
         // Validate password match
         if (password !== confirmPassword) {
           setError("Passwords do not match");
-          setSubmitting(false);
           return;
         }
 
         // Validate college code for students
         if (role === "STUDENT" && !collegeCode) {
           setError("College code is required for students");
-          setSubmitting(false);
           return;
         }
 
-        // Build register request with all required fields
+        // Build register request
         const registerData: any = {
           fullName,
           email,
           password,
-          confirmPassword,
           role,
         };
 
-        // Add collegeCode if student
         if (role === "STUDENT" && collegeCode) {
           registerData.collegeCode = collegeCode;
         }
 
-        try {
-          const response = await authService.register(registerData);
-          // After signup, user needs to verify email before login
-          // Show success message and switch to login mode
-          setMode("signin");
-          setError(""); // Clear any errors
-        } catch (registerErr) {
-          throw registerErr;
-        }
+        // Use register from AuthContext — returns empty session
+        const response = await register(registerData);
+        // After signup, show success and switch to login mode
+        setMode("signin");
+        setSuccess(`Registration successful! Check your email to verify your account, then sign in.`);
+        setError(""); // Clear any errors
       } else {
-        console.log("Calling AuthContext.login with:", { email, password });
         const response = await login({ email, password });
-        console.log("LOGIN RESPONSE:", response);
-        // Auto-redirect based on role
-        const userRole = response.user?.role || role;
-        const redirectUrl = ROLE_REDIRECTS[userRole] || "/home";
+        const redirectUrl = ROLE_REDIRECTS[response.user?.role || "STUDENT"] || "/home";
         navigate(redirectUrl);
       }
     } catch (err) {
@@ -127,7 +113,7 @@ export default function AuthPage() {
 
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3">
-            <div 
+            <div
               className="p-1.5 rounded-md flex items-center justify-center transition-transform duration-300 hover:scale-110"
               style={{ background: "linear-gradient(135deg, #7666F6 0%, #625EF8 100%)" }}
             >
@@ -156,7 +142,7 @@ export default function AuthPage() {
           {[
             { icon: "🎯", title: "Assess", desc: "AI-powered assessment" },
             { icon: "💡", title: "Match", desc: "Career recommendations" },
-            { icon: "🚀", title: "Grow", desc: "Personalized roadmap" }
+            { icon: "🚀", title: "Grow", desc: "Personalized roadmap" },
           ].map((item) => (
             <div key={item.title} className="rounded-lg p-4 transition-all hover:scale-105" style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
               <div className="text-2xl mb-2">{item.icon}</div>
@@ -172,7 +158,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           {/* Logo for mobile */}
           <Link href="/" className="mb-8 flex items-center gap-3 lg:hidden justify-center">
-            <div 
+            <div
               className="p-1.5 rounded-md flex items-center justify-center transition-transform duration-300 hover:scale-110"
               style={{ background: "linear-gradient(135deg, #7666F6 0%, #625EF8 100%)" }}
             >
@@ -186,7 +172,7 @@ export default function AuthPage() {
             <p className="text-sm font-semibold" style={{ color: "#7666F6" }}>
               {isSignup ? "Get Started" : "Welcome Back"}
             </p>
-            <h2 className="mt-2 text-3xl sm:text-4x1 font-bold tracking-tight text-foreground">
+            <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
               {isSignup ? "Create Your Account" : "Sign In"}
             </h2>
             <p className="mt-4 text-sm" style={{ color: "#94A3B8" }}>
@@ -201,10 +187,8 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() => setMode("signin")}
-              className={`flex-1 rounded-lg px-25 py-2.5 text-sm font-semibold transition-all ${
-                !isSignup 
-                  ? "text-white" 
-                  : "text-foreground hover:text-foreground"
+              className={`flex-1 rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+                !isSignup ? "text-white" : "text-foreground hover:text-foreground"
               }`}
               style={!isSignup ? { background: "linear-gradient(135deg, #7666F6 0%, #625EF8 100%)" } : {}}
             >
@@ -213,10 +197,8 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`flex-1 rounded-lg px-25 py-2.5 text-sm font-semibold transition-all ${
-                isSignup 
-                  ? "text-white" 
-                  : "text-foreground hover:text-foreground"
+              className={`flex-1 rounded-lg px-6 py-2.5 text-sm font-semibold transition-all ${
+                isSignup ? "text-white" : "text-foreground hover:text-foreground"
               }`}
               style={isSignup ? { background: "linear-gradient(135deg, #7666F6 0%, #625EF8 100%)" } : {}}
             >
@@ -232,11 +214,11 @@ export default function AuthPage() {
                   <span className="mb-2.5 block text-sm font-semibold text-foreground">Full Name</span>
                   <div className="relative">
                     <User className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
-                    <Input 
-                      name="fullName" 
-                      className="h-12 pl-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
-                      placeholder="John Doe" 
-                      required 
+                    <Input
+                      name="fullName"
+                      className="h-12 pl-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50"
+                      placeholder="John Doe"
+                      required
                     />
                   </div>
                 </label>
@@ -245,29 +227,32 @@ export default function AuthPage() {
                   <span className="mb-2.5 block text-sm font-semibold text-foreground">Role</span>
                   <select
                     name="role"
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
                     className="h-12 w-full rounded-lg px-3.5 py-2 text-sm font-medium transition-all"
                     style={{ borderColor: "#E2E8F0", background: "#FFFFFF" }}
                     required
                   >
-                    <option value="">Select your role</option>
                     <option value="STUDENT">Student</option>
                     <option value="RECRUITER">Recruiter</option>
                     <option value="PLACEMENT_OFFICER">Placement Officer</option>
                   </select>
                 </label>
 
-                {/* College code for students */}
-                <label className="block">
-                  <span className="mb-2.5 block text-sm font-semibold text-foreground">
-                    College Code <span style={{ color: "#EF4444" }}>*</span>
-                  </span>
-                  <Input 
-                    name="collegeCode" 
-                    className="h-12 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
-                    placeholder="e.g., IIT001" 
-                    required={role === "STUDENT"}
-                  />
-                </label>
+                {/* College code — only required for students */}
+                {selectedRole === "STUDENT" && (
+                  <label className="block">
+                    <span className="mb-2.5 block text-sm font-semibold text-foreground">
+                      College Code <span style={{ color: "#EF4444" }}>*</span>
+                    </span>
+                    <Input
+                      name="collegeCode"
+                      className="h-12 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50"
+                      placeholder="e.g., IIT001"
+                      required
+                    />
+                  </label>
+                )}
               </>
             )}
 
@@ -275,12 +260,12 @@ export default function AuthPage() {
               <span className="mb-2.5 block text-sm font-semibold text-foreground">Email Address</span>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
-                <Input 
-                  name="email" 
-                  className="h-12 pl-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
-                  type="email" 
-                  placeholder="you@example.com" 
-                  required 
+                <Input
+                  name="email"
+                  className="h-12 pl-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50"
+                  type="email"
+                  placeholder="you@example.com"
+                  required
                 />
               </div>
             </label>
@@ -289,18 +274,25 @@ export default function AuthPage() {
               <span className="mb-2.5 block text-sm font-semibold text-foreground">Password</span>
               <div className="relative">
                 <LockKeyhole className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
-                <Input 
-                  name="password" 
-                  className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
-                  type="password" 
-                  placeholder="Enter your password" 
-                  required 
+                <Input
+                  name="password"
+                  className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  required
                 />
-                <Eye className="absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 cursor-pointer transition-colors" style={{ color: "#94A3B8" }} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                  aria-label="Toggle password visibility"
+                >
+                  <Eye className="h-5 w-5 cursor-pointer transition-colors" style={{ color: showPassword ? "#7666F6" : "#94A3B8" }} />
+                </button>
               </div>
               {isSignup && (
                 <p className="mt-2 text-xs" style={{ color: "#94A3B8" }}>
-                  Must be 8+ characters with uppercase, lowercase, number, and special character (@$!%*?&)
+                  Must be at least 6 characters.
                 </p>
               )}
             </label>
@@ -310,14 +302,21 @@ export default function AuthPage() {
                 <span className="mb-2.5 block text-sm font-semibold text-foreground">Confirm Password</span>
                 <div className="relative">
                   <LockKeyhole className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2" style={{ color: "#94A3B8" }} />
-                  <Input 
-                    name="confirmPassword" 
-                    className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50" 
-                    type="password" 
-                    placeholder="Confirm your password" 
-                    required 
+                  <Input
+                    name="confirmPassword"
+                    className="h-12 pl-11 pr-11 rounded-lg border border-[#E2E8F0] focus:ring-2 focus:ring-[#7666F6]/50"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    required
                   />
-                  <Eye className="absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 cursor-pointer transition-colors" style={{ color: "#94A3B8" }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                    aria-label="Toggle confirm password visibility"
+                  >
+                    <Eye className="h-5 w-5 cursor-pointer transition-colors" style={{ color: showConfirmPassword ? "#7666F6" : "#94A3B8" }} />
+                  </button>
                 </div>
               </label>
             )}
@@ -325,8 +324,8 @@ export default function AuthPage() {
             {!isSignup && (
               <div className="flex items-center justify-between pt-2">
                 <label className="flex items-center gap-2.5 text-sm cursor-pointer transition-colors" style={{ color: "#94A3B8" }}>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="h-4 w-4 rounded transition-all"
                     style={{ borderColor: "#E2E8F0", accentColor: "#7666F6" }}
                   />
@@ -341,6 +340,12 @@ export default function AuthPage() {
             {error && (
               <div className="rounded-lg px-4 py-3 text-sm font-medium" style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#DC2626" }}>
                 {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="rounded-lg px-4 py-3 text-sm font-medium" style={{ background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.2)", color: "#15803D" }}>
+                {success}
               </div>
             )}
 
@@ -363,8 +368,6 @@ export default function AuthPage() {
               )}
             </button>
           </form>
-
-
 
           {/* Sign In/Up Toggle */}
           <p className="mt-8 text-center text-sm" style={{ color: "#94A3B8" }}>

@@ -97,9 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return next;
       },
       async register(input) {
-        const next = await authService.register(input);
-        persistSession(next);
-        return next;
+        // Registration returns { message, email } — NOT auth tokens
+        // User must verify email and login separately
+        const response = await authService.register(input);
+        // Don't persist session or redirect — show verification message
+        return {
+          user: null,
+          accessToken: "",
+          refreshToken: "",
+        } as AuthSession;
       },
       async logout() {
         const refreshToken = session?.refreshToken;
