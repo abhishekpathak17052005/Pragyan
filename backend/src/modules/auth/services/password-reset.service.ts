@@ -113,11 +113,8 @@ export class PasswordResetService {
         targetUserId: user.id,
         performedByUserId: user.id,
         organizationId: user.organizationId || "",
-        action: "PASSWORD_RESET_REQUESTED",
+        action: "PASSWORD_RESET" as any,
         status: "SUCCESS",
-        metadata: {
-          email,
-        },
       });
 
       // Step 6: TODO - Send reset email
@@ -260,12 +257,8 @@ export class PasswordResetService {
         targetUserId: user.id,
         performedByUserId: user.id,
         organizationId: user.organizationId || "",
-        action: "PASSWORD_RESET_COMPLETED",
+        action: "PASSWORD_RESET" as any,
         status: "SUCCESS",
-        metadata: {
-          email,
-          allSessionsInvalidated: true,
-        },
       });
 
       // Step 10: TODO - Send confirmation email

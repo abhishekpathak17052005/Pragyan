@@ -60,11 +60,9 @@ export class PasswordChangeService {
         targetUserId: user.id,
         performedByUserId: user.id,
         organizationId: user.organizationId || "",
-        action: "PASSWORD_CHANGE_FAILED",
+        action: "PASSWORD_RESET" as any,
         status: "FAILURE",
-        metadata: {
-          reason: "Invalid current password",
-        },
+        failureReason: "Invalid current password",
       });
 
       throw new Error("Current password is incorrect");
@@ -120,12 +118,8 @@ export class PasswordChangeService {
       targetUserId: user.id,
       performedByUserId: user.id,
       organizationId: user.organizationId || "",
-      action: "PASSWORD_CHANGED",
+      action: "PASSWORD_RESET" as any,
       status: "SUCCESS",
-      metadata: {
-        message: "Password changed successfully",
-        allSessionsInvalidated: true,
-      },
     });
 
     // Step 9: TODO - Send confirmation email

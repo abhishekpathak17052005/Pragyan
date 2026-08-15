@@ -7,7 +7,6 @@ import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "@/middleware/errorHandler";
 import { meService, registerService, verifyEmailService, loginService } from "./services";
 import { OAuthService } from "./services/oauth.service";
-import { passwordService } from "./services/password.service";
 import { config } from "@/config/env";
 import { authService } from "@/services/auth";
 import { twoFactorService } from "@/services/twoFactor";
@@ -112,7 +111,6 @@ export class AuthController {
    */
   static refresh = asyncHandler(
     async (req: Request, res: Response, _next: NextFunction) => {
-      const crypto = require('crypto');
       const { readRefreshTokenCookie, setAuthCookies } = await import('@/security');
       const token = req.body.refreshToken || readRefreshTokenCookie(req.headers.cookie);
       if (!token) {
