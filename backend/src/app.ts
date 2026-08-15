@@ -38,6 +38,11 @@ import {
   careerGraphRoutes,
   learningResourcesRoutes,
 } from '@/routes';
+
+import assessmentDiscoveryRoutes from '@/routes/assessmentDiscovery';
+import assessmentInterestRoutes from '@/routes/assessmentInterest';
+import assessmentCapabilityRoutes from '@/routes/assessmentCapability';
+import assessmentRoutes from '@/routes/assessment';
 import adminRoutes from '@/routes/admin';
 import debugRoutes from '@/routes/debug';
 import adminDevRoutes from '@/routes/adminDev';
@@ -147,6 +152,10 @@ app.use('/api/topics', topicsRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/learning-resources', learningResourcesRoutes);
 app.use('/api/career-graph', careerGraphRoutes);
+app.use('/api/assessment/discovery', assessmentDiscoveryRoutes);
+app.use('/api/assessment/interest', assessmentInterestRoutes);
+app.use('/api/assessment/capability', assessmentCapabilityRoutes);
+app.use('/api/assessment', assessmentRoutes);
 app.use('/api/journey', journeyRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
