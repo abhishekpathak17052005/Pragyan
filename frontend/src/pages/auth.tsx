@@ -85,6 +85,7 @@ export default function AuthPage() {
           fullName,
           email,
           password,
+          confirmPassword,  // ✅ REQUIRED by backend validation
           role,
         };
 
