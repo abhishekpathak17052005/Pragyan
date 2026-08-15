@@ -367,7 +367,108 @@ export async function sendFeedbackSubmissionUserEmail(
   }
 }
 
-export async function sendPasswordResetOTP(email: string, otp: string) {
+export function buildEmailVerificationHtml(fullName: string, verificationLink: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify Your Email</title>
+  </head>
+  <body style="margin:0;padding:0;background:#0a0e1a;font-family:Inter,Arial,sans-serif;color:#e8edf7;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0a0e1a;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:rgba(15,23,42,0.95);border:1px solid rgba(139,92,246,0.25);border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 28px;text-align:center;background:linear-gradient(135deg,#8b5cf6 0%,#06b6d4 100%);">
+                <h1 style="margin:0;font-size:28px;color:#ffffff;">Pragyan AI</h1>
+                <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.9);">Your Career Guide</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 28px;">
+                <h2 style="margin:0 0 16px;font-size:22px;color:#e8edf7;">Welcome, ${esc(fullName)}! 🎉</h2>
+                <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#cbd5e1;">
+                  Thank you for signing up for Pragyan AI. To get started, please verify your email address by clicking the button below:
+                </p>
+                <div style="text-align:center;margin:24px 0;">
+                  <a href="${esc(verificationLink)}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#8b5cf6 0%,#06b6d4 100%);color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
+                    Verify Email Address
+                  </a>
+                </div>
+                <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+                  If you didn't create an account, you can safely ignore this email.
+                </p>
+                <p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#94a3b8;">
+                  This verification link expires in 24 hours.
+                </p>
+                <div style="margin:24px 0 0;padding:16px;background:rgba(139,92,246,0.1);border-left:3px solid #8b5cf6;border-radius:4px;">
+                  <p style="margin:0;font-size:13px;line-height:1.6;color:#cbd5e1;">
+                    <strong>Alternative:</strong> If the button doesn't work, copy and paste this link into your browser:<br/>
+                    <a href="${esc(verificationLink)}" style="color:#8b5cf6;word-break:break-all;">${esc(verificationLink)}</a>
+                  </p>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 28px;border-top:1px solid rgba(139,92,246,0.2);text-align:center;">
+                <p style="margin:0;font-size:12px;color:#64748b;">
+                  © ${new Date().getFullYear()} Pragyan AI. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `.trim();
+}
+
+async function sendVerificationEmail(email: string, fullName: string, verificationLink: string) {
+  const transporter = createTransporter();
+  const from = config.email.from || config.email.user;
+
+  if (!transporter || !from) {
+    if (config.nodeEnv !== 'production') {
+      console.warn(`[emailService] Email not configured. Verification link for ${email}: ${verificationLink}`);
+      return;
+    }
+
+    throw new Error('Email service is not configured');
+  }
+
+  try {
+    await sendWithTimeout(
+      transporter.sendMail({
+        from,
+        to: email,
+        subject: 'Pragyan AI - Verify Your Email Address',
+        html: buildEmailVerificationHtml(fullName, verificationLink),
+        text: `Welcome to Pragyan AI, ${fullName}!\n\nPlease verify your email address by clicking this link:\n${verificationLink}\n\nThis link expires in 24 hours.\n\nIf you didn't create an account, you can safely ignore this email.`,
+      }),
+      SMTP_TIMEOUT_MS,
+      'Email verification delivery timed out'
+    );
+  } catch (error) {
+    if (config.nodeEnv !== 'production') {
+      console.warn(`[emailService] Failed to send email. Verification link for ${email}: ${verificationLink}`);
+      console.warn('[emailService] SMTP error:', error instanceof Error ? error.message : error);
+      return;
+    }
+
+    if (isTimeoutError(error)) {
+      throw new Error('Unable to send verification email in time. Please try again later.');
+    }
+
+    throw error;
+  }
+}
+
+async function sendPasswordResetOTP(email: string, otp: string) {
   const transporter = createTransporter();
   const from = config.email.from || config.email.user;
 
@@ -406,3 +507,5 @@ export async function sendPasswordResetOTP(email: string, otp: string) {
     throw error;
   }
 }
+
+export { sendPasswordResetOTP, sendVerificationEmail };
