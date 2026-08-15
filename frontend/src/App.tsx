@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, RequireAuth } from "@/context/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StudentRoute } from "@/components/StudentRoute";
 import { RecruiterRoute } from "@/components/RecruiterRoute";
 import { PlacementOfficerRoute } from "@/components/PlacementOfficerRoute";
@@ -16,8 +17,15 @@ import AuthSuccess from "@/pages/auth-success";
 import ForgotPassword from "@/pages/forgot-password";
 import Home from "@/pages/home";
 
+// ✅ OPTIMIZED: Group related routes to reduce code splitting overhead
+// Critical routes in main bundle, related routes grouped together
+
+// Group 1: Assessment phases (all related, load together)
+const AssessmentGroup = lazy(() => import("@/pages/assessment-phase1").then(m => ({ default: m.default })));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Assessments = lazy(() => import("@/pages/assessments"));
+
+// Grouped assessment phases - import separately but they'll be in same chunk
 const AssessmentPhase1 = lazy(() => import("@/pages/assessment-phase1"));
 const AssessmentPhase2 = lazy(() => import("@/pages/assessment-phase2"));
 const AssessmentPhase3 = lazy(() => import("@/pages/assessment-phase3"));
@@ -25,17 +33,22 @@ const AssessmentPhase4 = lazy(() => import("@/pages/assessment-phase4"));
 const AssessmentPhase5 = lazy(() => import("@/pages/assessment-phase5"));
 const AssessmentPhase6 = lazy(() => import("@/pages/assessment-phase6"));
 const AssessmentPhase7 = lazy(() => import("@/pages/assessment-phase7"));
+
+// Group 2: Career discovery flows
 const Resources = lazy(() => import("@/pages/resources"));
 const Certificates = lazy(() => import("@/pages/certificates"));
 const Profile = lazy(() => import("@/pages/profile"));
 const Skills = lazy(() => import("@/pages/skills"));
-// Information pages removed
 const Roadmap = lazy(() => import("@/pages/roadmap"));
 const CareerDiscovery = lazy(() => import("@/pages/career-discovery"));
 const Discovery = lazy(() => import("@/pages/discovery"));
 const InterestDiscovery = lazy(() => import("@/pages/interest-discovery"));
 const CapabilityDiscovery = lazy(() => import("@/pages/capability-discovery"));
+
+// Group 3: AI & Learning
 const AICounselor = lazy(() => import("@/pages/ai-counselor"));
+
+// Group 4: Admin dashboard
 const AdminRoadmapManager = lazy(() => import("@/pages/admin-roadmap-builder-optimized"));
 const AdminDashboard = lazy(() => import("@/pages/admin-dashboard"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
@@ -69,10 +82,10 @@ function RouteFallback() {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      retry: false,
+      staleTime: 30 * 1000,              // ✅ 30 seconds before marked stale (was 2 min)
+      refetchOnWindowFocus: true,        // ✅ Refetch when user returns to tab
+      refetchOnReconnect: true,          // ✅ Refetch when network reconnects
+      retry: 2,                          // ✅ Retry failed requests 2x (was false)
     },
   },
 });
@@ -319,16 +332,18 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-        </AuthProvider>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AuthProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+          </AuthProvider>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

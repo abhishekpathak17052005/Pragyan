@@ -26,7 +26,6 @@ const ARGON2_OPTIONS = {
  * BCrypt configuration (legacy)
  * Used only for verification of existing passwords
  */
-const BCRYPT_ROUNDS = 12;
 
 /**
  * Password hashing and verification utility

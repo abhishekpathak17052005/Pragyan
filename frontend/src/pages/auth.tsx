@@ -94,12 +94,20 @@ export default function AuthPage() {
 
         // Use register from AuthContext — returns empty session
         const response = await register(registerData);
+        // ✅ ADDED: Clear form after successful signup
+        setFormPassword("");
+        setFormConfirmPassword("");
         // After signup, show success and switch to login mode
         setMode("signin");
         setSuccess(`Registration successful! Check your email to verify your account, then sign in.`);
         setError(""); // Clear any errors
       } else {
         const response = await login({ email, password });
+        // ✅ ADDED: Clear form before redirect
+        setFormPassword("");
+        setFormConfirmPassword("");
+        setError("");
+        setSuccess("");
         const redirectUrl = ROLE_REDIRECTS[response.user?.role || "STUDENT"] || "/home";
         navigate(redirectUrl);
       }
@@ -116,7 +124,6 @@ export default function AuthPage() {
           errorMessage = apiError.message;
         }
       }
-      console.error("Auth error:", err);
       setError(errorMessage);
     } finally {
       setSubmitting(false);

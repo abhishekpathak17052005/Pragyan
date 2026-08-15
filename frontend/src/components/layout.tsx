@@ -65,29 +65,18 @@ function NavLink({ item, isActive, idx, compact }: { item: NavItem; isActive: bo
   return (
     <Link 
       href={item.href}
-      className={`nav-item flex items-center gap-3 rounded-xl transition-all duration-300 cursor-pointer ${compact ? "px-2.5 py-2" : "px-3 py-2.5"}`}
+      className={`nav-item flex items-center gap-3 rounded-xl transition-all duration-300 cursor-pointer ${
+        compact ? "px-2.5 py-2" : "px-3 py-2.5"
+      } ${
+        isActive 
+          ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white" 
+          : "text-gray-400 hover:text-white hover:bg-white/10"
+      }`}
       style={{
-        background: isActive ? "linear-gradient(90deg, #4F46E5, #625EF8)" : "transparent",
-        color: isActive ? "#FFFFFF" : "#94A3B8",
-        fontWeight: isActive ? "500" : "400",
         animationDelay: `${idx * 50}ms`,
       }}
-      onMouseEnter={(e) => {
-        if (!isActive) {
-          (e.currentTarget as HTMLElement).style.backgroundColor = "rgba(255, 255, 255, 0.1)";
-          (e.currentTarget as HTMLElement).style.color = "#FFFFFF";
-          (e.currentTarget as HTMLElement).style.transform = "translateX(4px)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) {
-          (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-          (e.currentTarget as HTMLElement).style.color = "#94A3B8";
-          (e.currentTarget as HTMLElement).style.transform = "translateX(0)";
-        }
-      }}
     >
-      <item.icon className="w-4.5 h-4.5 flex-shrink-0 transition-transform duration-300" style={{ width: compact ? 16 : 18, height: compact ? 16 : 18 }} />
+      <item.icon className={`flex-shrink-0 transition-transform duration-300 ${compact ? "w-4 h-4" : "w-4.5 h-4.5"}`} />
       <span className={`transition-all duration-300 ${compact ? "text-xs" : "text-sm"}`}>{item.label}</span>
     </Link>
   );
@@ -140,19 +129,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen w-full">
       {/* Sidebar */}
       <aside 
-        className={`${compactSidebar ? "w-[190px]" : "w-[220px]"} flex-shrink-0 flex flex-col transition-all duration-300`}
-        style={{ backgroundColor: "#0F172A" }}
+        className={`${compactSidebar ? "w-[190px]" : "w-[220px]"} flex-shrink-0 flex flex-col transition-all duration-300 bg-slate-900`}
       >
         <div className="p-6 flex items-center gap-2">
           <div 
-            className="p-1.5 rounded-md flex items-center justify-center transition-transform duration-300 hover:scale-110"
-            style={{ background: "linear-gradient(135deg, #7666F6 0%, #625EF8 100%)" }}
+            className="p-1.5 rounded-md flex items-center justify-center transition-transform duration-300 hover:scale-110 bg-gradient-to-br from-purple-600 to-purple-500"
           >
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight text-white">Pragyan AI</h1>
-            <p className="text-xs transition-colors duration-200" style={{ color: "#94A3B8" }}>Your Career Guide</p>
+            <p className="text-xs transition-colors duration-200 text-slate-400">Your Career Guide</p>
           </div>
         </div>
 
@@ -198,19 +185,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Logout Button at Bottom */}
-        <div className="px-3 py-3 border-t transition-colors duration-200" style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}>
+        <div className="px-3 py-3 border-t border-white/10 transition-colors duration-200">
           <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 text-red-400 hover:bg-red-500/20"
           >
-            <LogOut className="w-4.5 h-4.5 flex-shrink-0" style={{ width: 18, height: 18 }} />
+            <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
             <span className="text-sm font-medium">Logout</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col rounded-tl-[56px] overflow-hidden transition-all duration-300" style={{ backgroundColor: "#F7F8FC" }}>
+      <main className="flex-1 flex flex-col rounded-tl-[56px] overflow-hidden transition-all duration-300 bg-slate-50">
 
         {/* Top bar with notification bell */}
         <div className="flex items-center justify-end px-6 pt-4 pb-0 gap-2">

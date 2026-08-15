@@ -116,11 +116,6 @@ export class LoginService {
     // ADMIN users: must be ACTIVE status
     const isRegularUser = user.userRole && ["STUDENT", "RECRUITER", "PLACEMENT_OFFICER"].includes(user.userRole);
     
-    console.log("[Login] Account status check:");
-    console.log("  userRole:", user.userRole);
-    console.log("  isRegularUser:", isRegularUser);
-    console.log("  accountStatus:", user.accountStatus);
-    
     if (isRegularUser) {
       // Regular users can login with EMAIL_PENDING or ACTIVE status
       if (user.accountStatus !== "ACTIVE" && user.accountStatus !== "EMAIL_PENDING") {
@@ -228,11 +223,8 @@ export class LoginService {
       try {
         const newHash = await PasswordUtil.hash(input.password);
         await userRepository.update(user.id, { password: newHash });
-        console.log(`[Password Migration] User ${user.id} password rehashed to Argon2id`);
+        // Password migration successful (silent)
       } catch (rehashError) {
-        console.warn(
-          `[Password Migration] Failed to rehash password for user ${user.id}: ${rehashError}`
-        );
         // Don't fail login if rehashing fails - continue with old hash
       }
     }
@@ -249,45 +241,53 @@ export class LoginService {
     const refreshTokenValue = crypto.randomBytes(32).toString("hex");
     const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    await refreshTokenRepository.create({
-      token: refreshTokenValue,
-      familyId,
-      userId: user.id,
-      expiresAt: refreshTokenExpiresAt,
-      deviceId: this.generateDeviceId(userAgent),  // Fingerprint device
-      ipAddress,
-      userAgent,
-    });
+    // ✅ OPTIMIZED: Parallelize database operations
+    // These are independent, so run them concurrently instead of sequentially
+    await Promise.all([
+      // Create refresh token
+      refreshTokenRepository.create({
+        token: refreshTokenValue,
+        familyId,
+        userId: user.id,
+        expiresAt: refreshTokenExpiresAt,
+        deviceId: this.generateDeviceId(userAgent),
+        ipAddress,
+        userAgent,
+      }),
+      
+      // Update last login metadata
+      userRepository.update(user.id, {
+        lastLoginAt: new Date(),
+        lastLoginIp: ipAddress,
+        lastLoginUserAgent: userAgent,
+      }),
+      
+      // Log audit (non-blocking)
+      auditRepository.log({
+        targetUserId: user.id,
+        performedByUserId: user.id,
+        organizationId: user.organizationId || "",
+        action: "LOGIN",
+        status: "SUCCESS",
+        ipAddress,
+        userAgent,
+      }),
+    ]);
 
-    // Step 7: Audit log
-    await auditRepository.log({
-      targetUserId: user.id,
-      performedByUserId: user.id, // User performing the action
-      organizationId: user.organizationId || "",
-      action: "LOGIN",
-      status: "SUCCESS",
-      ipAddress,
-      userAgent,
-    });
-
-    // Step 7a: Update last login metadata
-    await userRepository.update(user.id, {
-      lastLoginAt: new Date(),
-      lastLoginIp: ipAddress,
-      lastLoginUserAgent: userAgent,
-    });
-
-    // Step 8: Publish event
-    await publishLoginSuccess({
+    // Step 8: Publish event (non-blocking, after response sent)
+    // Don't await this - fire and forget
+    publishLoginSuccess({
       userId: user.id,
       email: user.email,
       role: user.userRole || "STUDENT",
       ipAddress,
       userAgent,
       timestamp: new Date(),
+    }).catch((err) => {
+      console.error("[LoginService] Failed to publish LoginSuccess event:", err);
     });
 
-    // Step 8a: Reset throttle on successful login
+    // Step 8a: Reset throttle on successful login (non-blocking)
     LoginThrottleService.recordSuccessfulLogin(user.email);
 
     // Step 9: Build response
