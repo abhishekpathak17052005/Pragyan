@@ -1,5 +1,5 @@
-import { lazy, Suspense } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { lazy, Suspense, useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -79,6 +79,16 @@ function RouteFallback() {
   );
 }
 
+function RedirectTo({ to }: { to: string }) {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    navigate(to, { replace: true });
+  }, [navigate, to]);
+
+  return null;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -125,6 +135,11 @@ function Router() {
                 <Route path="/assessments">
                   <StudentRoute>
                     <Assessments />
+                  </StudentRoute>
+                </Route>
+                <Route path="/assessment">
+                  <StudentRoute>
+                    <RedirectTo to="/assessments" />
                   </StudentRoute>
                 </Route>
                 <Route path="/assessment/phase-1">

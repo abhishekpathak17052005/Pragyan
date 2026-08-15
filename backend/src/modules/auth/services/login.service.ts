@@ -82,9 +82,8 @@ export class LoginService {
     }
 
     // Step 2: Email verification check
-    // Only STUDENT users require email verification
-    // ADMIN, RECRUITER, PLACEMENT_OFFICER do not need verification
-    if (!user.emailVerifiedAt && user.userRole === "STUDENT") {
+    // Every local signup must verify email before login.
+    if (user.provider === "local" && (!user.emailVerifiedAt || !user.emailVerified)) {
       // Record failed attempt
       LoginThrottleService.recordFailedAttempt(user.email);
       
@@ -112,78 +111,40 @@ export class LoginService {
     }
 
     // Step 3: Check account status
-    // Regular users (STUDENT, RECRUITER, PLACEMENT_OFFICER): can login with EMAIL_PENDING status
-    // ADMIN users: must be ACTIVE status
-    const isRegularUser = user.userRole && ["STUDENT", "RECRUITER", "PLACEMENT_OFFICER"].includes(user.userRole);
-    
-    if (isRegularUser) {
-      // Regular users can login with EMAIL_PENDING or ACTIVE status
-      if (user.accountStatus !== "ACTIVE" && user.accountStatus !== "EMAIL_PENDING") {
-        // Record failed attempt
-        LoginThrottleService.recordFailedAttempt(user.email);
-        
-        const reasonMap: Record<string, LoginFailureReason> = {
-          PENDING: LoginFailureReason.ACCOUNT_PENDING,
-          REJECTED: LoginFailureReason.ACCOUNT_REJECTED,
-          SUSPENDED: LoginFailureReason.ACCOUNT_SUSPENDED,
-        };
-        const failureReason = reasonMap[user.accountStatus] || "ACCOUNT_NOT_ACTIVE";
-        
-        await auditRepository.log({
-          targetUserId: user.id,
-          performedByUserId: user.id,
-          organizationId: user.organizationId || "",
-          action: "LOGIN",
-          status: "FAILURE",
-          failureReason,
-          ipAddress,
-          userAgent,
-        });
-        
-        await publishLoginFailed({
-          email: user.email,
-          reason: `Account status: ${user.accountStatus}`,
-          ipAddress,
-          userAgent,
-          timestamp: new Date(),
-        });
-        
-        throw new Error(`Account status is ${user.accountStatus}. Please wait for admin approval.`);
+    if (user.accountStatus !== "ACTIVE") {
+      LoginThrottleService.recordFailedAttempt(user.email);
+      
+      const reasonMap: Record<string, LoginFailureReason> = {
+        EMAIL_PENDING: LoginFailureReason.EMAIL_NOT_VERIFIED,
+        PENDING: LoginFailureReason.ACCOUNT_PENDING,
+        REJECTED: LoginFailureReason.ACCOUNT_REJECTED,
+        SUSPENDED: LoginFailureReason.ACCOUNT_SUSPENDED,
+      };
+      const failureReason = reasonMap[user.accountStatus] || "ACCOUNT_NOT_ACTIVE";
+      
+      await auditRepository.log({
+        targetUserId: user.id,
+        performedByUserId: user.id,
+        organizationId: user.organizationId || "",
+        action: "LOGIN",
+        status: "FAILURE",
+        failureReason,
+        ipAddress,
+        userAgent,
+      });
+      
+      await publishLoginFailed({
+        email: user.email,
+        reason: `Account status: ${user.accountStatus}`,
+        ipAddress,
+        userAgent,
+        timestamp: new Date(),
+      });
+      
+      if (user.accountStatus === "EMAIL_PENDING") {
+        throw new Error("Email not verified. Please verify your email first.");
       }
-    } else {
-      // ADMIN and other users must be ACTIVE
-      if (user.accountStatus !== "ACTIVE") {
-        // Record failed attempt
-        LoginThrottleService.recordFailedAttempt(user.email);
-        
-        const reasonMap: Record<string, LoginFailureReason> = {
-          PENDING: LoginFailureReason.ACCOUNT_PENDING,
-          REJECTED: LoginFailureReason.ACCOUNT_REJECTED,
-          SUSPENDED: LoginFailureReason.ACCOUNT_SUSPENDED,
-        };
-        const failureReason = reasonMap[user.accountStatus] || "ACCOUNT_NOT_ACTIVE";
-        
-        await auditRepository.log({
-          targetUserId: user.id,
-          performedByUserId: user.id,
-          organizationId: user.organizationId || "",
-          action: "LOGIN",
-          status: "FAILURE",
-          failureReason,
-          ipAddress,
-          userAgent,
-        });
-        
-        await publishLoginFailed({
-          email: user.email,
-          reason: `Account status: ${user.accountStatus}`,
-          ipAddress,
-          userAgent,
-          timestamp: new Date(),
-        });
-        
-        throw new Error(`Account status is ${user.accountStatus}. Please wait for admin approval.`);
-      }
+      throw new Error(`Account status is ${user.accountStatus}. Please contact support.`);
     }
 
     // Step 4: Verify password

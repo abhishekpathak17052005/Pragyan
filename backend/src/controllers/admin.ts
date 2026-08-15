@@ -137,6 +137,7 @@ export const getUsers = asyncHandler(async (_req: Request, res: Response) => {
       isActive: true,
       accountStatus: true,
       emailVerified: true,
+      emailVerifiedAt: true,
       lastLoginAt: true,
       createdAt: true,
       updatedAt: true,
@@ -144,7 +145,10 @@ export const getUsers = asyncHandler(async (_req: Request, res: Response) => {
     take: 500,
   });
 
-  return sendSuccess(res, users, 200, 'Users fetched');
+  return sendSuccess(res, users.map((user) => ({
+    ...user,
+    emailVerified: Boolean(user.emailVerified || user.emailVerifiedAt),
+  })), 200, 'Users fetched');
 });
 
 export const getCurrentUsers = asyncHandler(async (_req: Request, res: Response) => {
@@ -229,7 +233,10 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
   return sendSuccess(res, user, 200, 'User role updated');
 });
 
-export const verifyUserEmail = asyncHandler(async (req: Request, res: Response) => {
+/**
+ * Block a user - sets isActive to false and accountStatus to SUSPENDED
+ */
+export const blockUser = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   if (!id) {
@@ -238,9 +245,38 @@ export const verifyUserEmail = asyncHandler(async (req: Request, res: Response) 
 
   const user = await prisma.user.update({
     where: { id },
-    data: { 
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
+    data: {
+      isActive: false,
+      accountStatus: 'SUSPENDED',
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true,
+      isActive: true,
+      accountStatus: true,
+      updatedAt: true,
+    },
+  });
+
+  return sendSuccess(res, user, 200, 'User blocked successfully');
+});
+
+/**
+ * Unblock a user - sets isActive to true and accountStatus to ACTIVE
+ */
+export const unblockUser = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return sendError(res, 400, 'User ID is required');
+  }
+
+  const user = await prisma.user.update({
+    where: { id },
+    data: {
+      isActive: true,
       accountStatus: 'ACTIVE',
     },
     select: {
@@ -248,13 +284,13 @@ export const verifyUserEmail = asyncHandler(async (req: Request, res: Response) 
       fullName: true,
       email: true,
       role: true,
-      emailVerified: true,
+      isActive: true,
       accountStatus: true,
       updatedAt: true,
     },
   });
 
-  return sendSuccess(res, user, 200, 'User email verified');
+  return sendSuccess(res, user, 200, 'User unblocked successfully');
 });
 
 export const getRoadmapStats = asyncHandler(async (_req: Request, res: Response) => {

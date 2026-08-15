@@ -11,6 +11,8 @@ const MIN_QUESTIONS = 4;
 const MAX_QUESTIONS = 8;
 const TARGET_CONFIDENCE = 0.85;
 
+type FallbackPhase5Question = Phase5Question & { correctAnswer: string };
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface Phase5PredictedRole {

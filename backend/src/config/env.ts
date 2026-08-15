@@ -1,7 +1,9 @@
 // src/config/env.ts
 
 import dotenv from 'dotenv';
+import path from 'path';
 
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
 const requiredEnvVars = [

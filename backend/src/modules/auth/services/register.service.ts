@@ -26,6 +26,7 @@ import type { RegisterInput } from "@/shared/auth";
 import { userRepository } from "../repository";
 import { publishUserRegistered, publishEmailVerificationRequested } from "../events";
 import { AUTH_CONSTANTS } from "../constants";
+import { config } from "@/config/env";
 
 const prisma = new PrismaClient();
 
@@ -71,10 +72,9 @@ export class RegisterService {
       );
     }
 
-    // Step 5: Determine initial account status
-    // ADMIN, RECRUITER, PLACEMENT_OFFICER: ACTIVE (no email verification needed)
-    // STUDENT: EMAIL_PENDING (requires email verification)
-    const accountStatus = input.role === "STUDENT" ? "EMAIL_PENDING" : "ACTIVE";
+    // Step 5: Every local signup starts pending email verification.
+    // Email ownership, not admin approval, is the activation gate.
+    const accountStatus = "EMAIL_PENDING";
 
     // Step 6-7: TRANSACTION - Atomic user + token creation
     const tokenExpiresAt = new Date(
@@ -95,24 +95,22 @@ export class RegisterService {
             userRole: input.role as "STUDENT" | "RECRUITER" | "PLACEMENT_OFFICER",
             role: this.mapUserRoleToLegacy(input.role as "STUDENT" | "RECRUITER" | "PLACEMENT_OFFICER"),
             accountStatus,
+            status: accountStatus,
+            emailVerified: false,
           },
         });
 
-        // Create verification token only for non-ADMIN users
-        let rawToken: string | undefined;
-        if (accountStatus !== "ACTIVE") {
-          rawToken = this.generateVerificationToken();
-          const tokenHash = this.hashToken(rawToken);
+        const rawToken = this.generateVerificationToken();
+        const tokenHash = this.hashToken(rawToken);
 
-          await tx.verificationToken.create({
-            data: {
-              userId: newUser.id,
-              tokenHash,
-              purpose: TokenPurpose.EMAIL_VERIFY,
-              expiresAt: tokenExpiresAt,
-            },
-          });
-        }
+        await tx.verificationToken.create({
+          data: {
+            userId: newUser.id,
+            tokenHash,
+            purpose: TokenPurpose.EMAIL_VERIFY,
+            expiresAt: tokenExpiresAt,
+          },
+        });
 
         return { newUser, rawToken };
       });
@@ -124,7 +122,7 @@ export class RegisterService {
     }
 
     // Step 8: Publish events (after transaction commits)
-    publishUserRegistered({
+    await publishUserRegistered({
       userId: user.id,
       email: user.email,
       fullName: user.fullName,
@@ -133,26 +131,17 @@ export class RegisterService {
       timestamp: new Date(),
     });
 
-    // Only publish email verification event for non-ADMIN users
-    if (accountStatus !== "ACTIVE") {
-      publishEmailVerificationRequested({
-        userId: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        verificationToken: verificationToken!,
-        verificationLink: `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/verify?token=${verificationToken}`,
-        expiresAt: tokenExpiresAt,
-        timestamp: new Date(),
-      });
-    }
+    await publishEmailVerificationRequested({
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      verificationToken: verificationToken!,
+      verificationLink: `${config.frontendUrl}/auth/verify?token=${verificationToken}`,
+      expiresAt: tokenExpiresAt,
+      timestamp: new Date(),
+    });
 
     // Step 9: Return response (no JWT)
-    if (accountStatus === "ACTIVE") {
-      return {
-        message: "Registration successful. Your account is active.",
-        email: user.email,
-      };
-    }
     return {
       message: "Registration successful. Please verify your email.",
       email: user.email,
