@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+﻿import nodemailer from 'nodemailer';
 import { config } from '@/config/env';
 
 const SMTP_TIMEOUT_MS = 8_000;
@@ -45,7 +45,7 @@ async function sendWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeou
   }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Escape HTML special chars to prevent XSS in email templates */
 function esc(v: unknown): string {
@@ -59,8 +59,8 @@ function esc(v: unknown): string {
 
 /** Convert integer rating to filled/empty star HTML */
 function buildStars(rating: number): string {
-  const filled = '&#9733;'; // ★
-  const empty  = '&#9734;'; // ☆
+  const filled = '&#9733;'; // â˜…
+  const empty  = '&#9734;'; // â˜†
   return [1, 2, 3, 4, 5]
     .map((n) => `<span style="color:${n <= rating ? '#f59e0b' : '#d1d5db'};font-size:18px;">${n <= rating ? filled : empty}</span>`)
     .join('');
@@ -170,24 +170,24 @@ function buildFeedbackUserHtml(feedback: any, user: any): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Thank You for Your Feedback – Pragyan</title>
+  <title>Thank You for Your Feedback â€“ Pragyan</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,'Segoe UI',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:32px 16px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;">
 
-        <!-- ── HEADER ── -->
+        <!-- â”€â”€ HEADER â”€â”€ -->
         <tr><td style="background:linear-gradient(135deg,#6d28d9 0%,#4f46e5 50%,#0ea5e9 100%);border-radius:16px 16px 0 0;padding:32px 36px;text-align:center;">
           <h1 style="margin:0;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Pragyan</h1>
           <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.75);letter-spacing:1.5px;text-transform:uppercase;">AI Career Intelligence Platform</p>
         </td></tr>
 
-        <!-- ── BODY ── -->
+        <!-- â”€â”€ BODY â”€â”€ -->
         <tr><td style="background:#ffffff;padding:36px 36px 28px;">
 
           <!-- Greeting -->
-          <p style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">Hello, ${firstName} 👋</p>
+          <p style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">Hello, ${firstName} ðŸ‘‹</p>
           <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#475569;">
             Thank you for taking the time to share your feedback with us. We have successfully received your submission and our team will review it as soon as possible.
           </p>
@@ -242,10 +242,10 @@ function buildFeedbackUserHtml(feedback: any, user: any): string {
           <p style="margin:0 0 8px;font-size:15px;line-height:1.7;color:#475569;">
             Your feedback helps us continuously improve Pragyan and deliver a better experience for all users. We appreciate your support.
           </p>
-          <p style="margin:0;font-size:15px;color:#475569;">— <strong style="color:#0f172a;">Team Pragyan</strong></p>
+          <p style="margin:0;font-size:15px;color:#475569;">â€” <strong style="color:#0f172a;">Team Pragyan</strong></p>
         </td></tr>
 
-        <!-- ── FOOTER ── -->
+        <!-- â”€â”€ FOOTER â”€â”€ -->
         <tr><td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:20px 36px;text-align:center;">
           <p style="margin:0 0 6px;font-size:13px;color:#64748b;">
             Need help? Contact us at
@@ -296,22 +296,22 @@ export async function sendFeedbackSubmissionAdminEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const adminEmail = process.env.ADMIN_EMAIL || config.email.user || '';
   if (!adminEmail) {
-    console.warn('[emailService] ADMIN_EMAIL not configured — skipping admin notification');
+    console.warn('[emailService] ADMIN_EMAIL not configured â€” skipping admin notification');
     return { sent: false, error: 'Admin email not configured' };
   }
 
   try {
     await sendMailWithFallback(
       adminEmail,
-      'New Feedback Received – Pragyan',
+      'New Feedback Received â€“ Pragyan',
       buildFeedbackAdminHtml(feedback, user),
       `New feedback submitted.\nUser: ${user?.fullName || 'Unknown'}\nEmail: ${user?.email || 'N/A'}\nCategory: ${feedback.category}\nRating: ${feedback.rating}/5\nPriority: ${feedback.priority}\nTitle: ${feedback.title}\n\n${feedback.description}`,
     );
-    console.info(`[emailService] ✓ Admin notification sent to ${adminEmail} for feedback ${feedback.id}`);
+    console.info(`[emailService] âœ“ Admin notification sent to ${adminEmail} for feedback ${feedback.id}`);
     return { sent: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[emailService] ✗ Admin notification failed for feedback ${feedback.id}:`, message);
+    console.error(`[emailService] âœ— Admin notification failed for feedback ${feedback.id}:`, message);
     return { sent: false, error: message };
   }
 }
@@ -334,7 +334,7 @@ export async function sendFeedbackSubmissionUserEmail(
     'Thank you for sharing your feedback with Pragyan.',
     'We have successfully received your submission and our team will review it shortly.',
     '',
-    '─── Feedback Summary ───────────────────────',
+    'â”€â”€â”€ Feedback Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€',
     `Reference ID : ${refId}`,
     `Category     : ${feedback.category ?? ''}`,
     `Rating       : ${feedback.rating ?? 0}/5`,
@@ -342,11 +342,11 @@ export async function sendFeedbackSubmissionUserEmail(
     `Title        : ${feedback.title ?? ''}`,
     `Description  : ${feedback.description ?? ''}`,
     `Submitted    : ${formatEmailDate(feedback.createdAt ?? new Date())}`,
-    '────────────────────────────────────────────',
+    'â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€',
     '',
     'Your feedback helps us improve Pragyan for everyone. We appreciate your support.',
     '',
-    '— Team Pragyan',
+    'â€” Team Pragyan',
     '',
     'This is an automated message. Please do not reply directly.',
   ].join('\n');
@@ -354,15 +354,15 @@ export async function sendFeedbackSubmissionUserEmail(
   try {
     await sendMailWithFallback(
       user.email,
-      'Thank You for Your Feedback – Pragyan',
+      'Thank You for Your Feedback â€“ Pragyan',
       buildFeedbackUserHtml(feedback, user),
       plainText,
     );
-    console.info(`[emailService] ✓ Confirmation email sent to ${user.email} for feedback ${feedback.id}`);
+    console.info(`[emailService] âœ“ Confirmation email sent to ${user.email} for feedback ${feedback.id}`);
     return { sent: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[emailService] ✗ Failed to send confirmation email to ${user.email}:`, message);
+    console.error(`[emailService] âœ— Failed to send confirmation email to ${user.email}:`, message);
     return { sent: false, error: message };
   }
 }
@@ -389,7 +389,7 @@ export function buildEmailVerificationHtml(fullName: string, verificationLink: s
             </tr>
             <tr>
               <td style="padding:32px 28px;">
-                <h2 style="margin:0 0 16px;font-size:22px;color:#e8edf7;">Welcome, ${esc(fullName)}! 🎉</h2>
+                <h2 style="margin:0 0 16px;font-size:22px;color:#e8edf7;">Welcome, ${esc(fullName)}! ðŸŽ‰</h2>
                 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#cbd5e1;">
                   Thank you for signing up for Pragyan AI. To get started, please verify your email address by clicking the button below:
                 </p>
@@ -415,7 +415,7 @@ export function buildEmailVerificationHtml(fullName: string, verificationLink: s
             <tr>
               <td style="padding:20px 28px;border-top:1px solid rgba(139,92,246,0.2);text-align:center;">
                 <p style="margin:0;font-size:12px;color:#64748b;">
-                  © ${new Date().getFullYear()} Pragyan AI. All rights reserved.
+                  Â© ${new Date().getFullYear()} Pragyan AI. All rights reserved.
                 </p>
               </td>
             </tr>
@@ -432,13 +432,14 @@ async function sendVerificationEmail(email: string, fullName: string, verificati
   const transporter = createTransporter();
   const from = config.email.from || config.email.user;
 
-  if (!transporter || !from) {
-    if (config.nodeEnv !== 'production') {
-      console.warn(`[emailService] Email not configured. Verification link for ${email}: ${verificationLink}`);
-      return;
-    }
+  // Always log the link so it is visible in Render logs even if SMTP is not configured
+  console.info(`[emailService] Verification link for ${email}: ${verificationLink}`);
 
-    throw new Error('Email service is not configured');
+  if (!transporter || !from) {
+    console.error('[emailService] EMAIL_* env vars not configured â€” cannot send verification email.');
+    console.error('[emailService] Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD, EMAIL_FROM on your server.');
+    // Do NOT throw â€” registration must still succeed when SMTP is unconfigured
+    return;
   }
 
   try {
@@ -448,23 +449,17 @@ async function sendVerificationEmail(email: string, fullName: string, verificati
         to: email,
         subject: 'Pragyan AI - Verify Your Email Address',
         html: buildEmailVerificationHtml(fullName, verificationLink),
-        text: `Welcome to Pragyan AI, ${fullName}!\n\nPlease verify your email address by clicking this link:\n${verificationLink}\n\nThis link expires in 24 hours.\n\nIf you didn't create an account, you can safely ignore this email.`,
+        text: `Welcome to Pragyan AI, ${fullName}!\n\nPlease verify your email address by clicking this link:\n${verificationLink}\n\nThis link expires in 24 hours.\n\nIf you did not create an account, you can safely ignore this email.`,
       }),
       SMTP_TIMEOUT_MS,
       'Email verification delivery timed out'
     );
+    console.info(`[emailService] Verification email sent successfully to ${email}`);
   } catch (error) {
-    if (config.nodeEnv !== 'production') {
-      console.warn(`[emailService] Failed to send email. Verification link for ${email}: ${verificationLink}`);
-      console.warn('[emailService] SMTP error:', error instanceof Error ? error.message : error);
-      return;
-    }
-
-    if (isTimeoutError(error)) {
-      throw new Error('Unable to send verification email in time. Please try again later.');
-    }
-
-    throw error;
+    // Log SMTP errors always so they appear in production logs
+    console.error(`[emailService] SMTP error sending verification email to ${email}:`, error instanceof Error ? error.message : error);
+    console.error(`[emailService] Manual fallback verification link: ${verificationLink}`);
+    // Do NOT throw â€” registration must succeed even if email fails
   }
 }
 

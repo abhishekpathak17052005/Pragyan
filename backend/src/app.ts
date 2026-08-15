@@ -25,25 +25,19 @@ import {
   roadmapRoutes,
   assessmentRoadmapRoutes,
   progressRoutes,
-  assessmentRoutes,
-  aiRoutes,
   recommendationsRoutes,
   profileRoutes,
   skillRoutes,
   feedbackRoutes,
   notificationRoutes,
   taskRoutes,
-  careerMatchingRoutes,
   careersRoutes,
   csvCareerRecommendationsRoutes,
   topicsRoutes,
   jobsRoutes,
   careerGraphRoutes,
   learningResourcesRoutes,
-  xpRoutes,
-  quizRoutes,
 } from '@/routes';
-
 import adminRoutes from '@/routes/admin';
 import debugRoutes from '@/routes/debug';
 import adminDevRoutes from '@/routes/adminDev';
@@ -56,7 +50,6 @@ import notesRoutes from '@/modules/notes/notes.routes';
 import recruitmentRoutes from '@/modules/recruitment/recruitment.routes';
 import placementRoutes from '@/modules/placement/placement.routes';
 
-import { redisRateLimiter } from '@/middleware/redisRateLimiter';
 import { ensureIntelligenceIndexes } from '@/modules/intelligence/intelligence.indexes';
 import { csvCareerDatasetService } from '@/services/csv-career-dataset';
 import healthRoutes from '@/routes/health';
@@ -147,18 +140,12 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/roadmap', assessmentRoadmapRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
 app.use('/api/progress', progressRoutes);
-// Protect assessment and AI endpoints with Redis-backed per-user/IP limiter (falls back to in-memory)
-app.use('/api/assessment', redisRateLimiter, assessmentRoutes);
-app.use('/api/ai', redisRateLimiter, aiRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
-app.use('/api/career-matching', careerMatchingRoutes);
 app.use('/api/careers', careersRoutes);
 app.use('/api/csv-careers', csvCareerRecommendationsRoutes);
 app.use('/api/topics', topicsRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/learning-resources', learningResourcesRoutes);
-app.use('/api/xp', xpRoutes);
-app.use('/api/quiz', quizRoutes);
 app.use('/api/career-graph', careerGraphRoutes);
 app.use('/api/journey', journeyRoutes);
 app.use('/api/mentor', mentorRoutes);

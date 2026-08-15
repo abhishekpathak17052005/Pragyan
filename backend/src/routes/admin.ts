@@ -31,6 +31,7 @@ router.get('/dashboard', adminController.getAdminDashboard);
 router.get('/users', adminController.getUsers);
 router.get('/current-users', adminController.getCurrentUsers);
 router.patch('/users/:id/role', adminController.updateUserRole);
+router.post('/users/:id/verify-email', adminController.verifyUserEmail);
 router.post('/users/:id/block', adminController.blockUser);
 router.post('/users/:id/unblock', adminController.unblockUser);
 router.get('/organizations', adminController.getOrganizations);

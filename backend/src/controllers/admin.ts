@@ -293,6 +293,36 @@ export const unblockUser = asyncHandler(async (req: Request, res: Response) => {
   return sendSuccess(res, user, 200, 'User unblocked successfully');
 });
 
+export const verifyUserEmail = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return sendError(res, 400, 'User ID is required');
+  }
+
+  const user = await prisma.user.update({
+    where: { id },
+    data: {
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      accountStatus: 'ACTIVE',
+      isActive: true,
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true,
+      emailVerified: true,
+      accountStatus: true,
+      isActive: true,
+      updatedAt: true,
+    },
+  });
+
+  return sendSuccess(res, user, 200, 'User email verified successfully');
+});
+
 export const getRoadmapStats = asyncHandler(async (_req: Request, res: Response) => {
   const [roadmaps, userProgress] = await Promise.all([
     prisma.roadmap.findMany({
