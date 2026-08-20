@@ -436,6 +436,7 @@ model User {
   // Relations
   refreshTokens           RefreshToken[]
   socialAccounts          SocialAccount[]
+  integrations            UserIntegration[]
   githubRepositories      GithubRepository[]
   portfolioProjects       UserPortfolioProject[]
   certifications          UserCertification[]
@@ -530,6 +531,26 @@ model SocialAccount {
 
   @@unique([provider, providerId])
   @@index([userId])
+}
+
+model UserIntegration {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String   @db.ObjectId
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider             String
+  providerAccountId    String?
+  encryptedAccessToken String
+  encryptedRefreshToken String?
+  tokenExpiresAt       DateTime?
+  scopes               String[] @default([])
+  metadata             Json?
+  connectedAt          DateTime @default(now())
+  lastSyncedAt         DateTime?
+  updatedAt            DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([provider])
 }
 
 model GithubRepository {
@@ -2257,4 +2278,3 @@ model SkillIndexEntry {
   documentFrequency Int
   jobIds            String[]
 }
-

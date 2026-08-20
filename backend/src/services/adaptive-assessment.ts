@@ -614,30 +614,162 @@ export class AdaptiveAssessmentService {
 
   async startAssessment(userId?: string) {
     const sessionId = randomUUID();
-    const rootQuestion = this.resolveRootQuestion();
+
+    // ── Load Phase 2 domain context from DB ──────────────────────────────────
+    // Phase 3 must be domain-locked: use the domains the user selected in Phase 2
+    // rather than starting with a generic root_career_path question.
+    let phase2Domains: string[] = [];
+    let phase2CareerObjective = '';
+    let phase2Motivation = '';
+
+    if (userId) {
+      try {
+        const phase2Session = await prisma.assessmentSession.findFirst({
+          where: { userId, phase: 2 },
+          orderBy: { completedAt: 'desc' },
+        });
+
+        if (phase2Session) {
+          const p2 = JSON.parse(phase2Session.analysis) as Record<string, any>;
+          phase2Domains = Array.isArray(p2.preferredDomains) ? p2.preferredDomains : [];
+          phase2CareerObjective = p2.careerObjective ?? '';
+          phase2Motivation = p2.motivation ?? '';
+        }
+      } catch {
+        // Phase 2 data unavailable — fall back gracefully
+      }
+    }
+
+    // ── Pre-seed session based on Phase 2 domain selections ──────────────────
+    // Map Phase 2 domains to career/trait boosts so the scoring is domain-locked
+    // from the first question and the engine doesn't wander into unrelated areas.
+    const preSeededCareerScores = { ...INITIAL_CAREER_SCORES };
+    const preSeededTraits = { ...INITIAL_TRAITS };
+
+    for (const domain of phase2Domains) {
+      const d = domain.toLowerCase();
+      if (d.includes('cyber') || d.includes('security') || d.includes('soc') || d.includes('penetration')) {
+        preSeededCareerScores.cyberSecurity += 20;
+        preSeededTraits.analytical += 6; preSeededTraits.logic += 6; preSeededTraits.discipline += 4;
+      } else if (d.includes('ai') || d.includes('machine learning') || d.includes('deep learning') || d.includes('ml') || d.includes('nlp') || d.includes('computer vision') || d.includes('mlops') || d.includes('generative')) {
+        preSeededCareerScores.dataScientist += 20;
+        preSeededTraits.math += 6; preSeededTraits.analytical += 6; preSeededTraits.coding += 4;
+      } else if (d.includes('data science') || d.includes('data analytics') || d.includes('data engineering') || d.includes('business intelligence')) {
+        preSeededCareerScores.dataScientist += 15;
+        preSeededTraits.math += 5; preSeededTraits.analytical += 6;
+      } else if (d.includes('full stack') || d.includes('frontend') || d.includes('backend') || d.includes('mobile') || d.includes('desktop') || d.includes('web')) {
+        preSeededCareerScores.softwareEngineer += 20;
+        preSeededTraits.coding += 6; preSeededTraits.logic += 5;
+      } else if (d.includes('cloud') || d.includes('aws') || d.includes('azure') || d.includes('gcp') || d.includes('devops') || d.includes('sre') || d.includes('platform')) {
+        preSeededCareerScores.softwareEngineer += 12;
+        preSeededTraits.analytical += 4; preSeededTraits.coding += 3;
+      } else if (d.includes('product') || d.includes('project') || d.includes('business analysis') || d.includes('consulting')) {
+        preSeededCareerScores.productManager += 15;
+        preSeededTraits.leadership += 4; preSeededTraits.communication += 4;
+      } else if (d.includes('design') || d.includes('ui') || d.includes('ux')) {
+        preSeededTraits.creativity += 8; preSeededTraits.design += 8;
+      } else if (d.includes('blockchain') || d.includes('iot') || d.includes('robotics') || d.includes('embedded') || d.includes('ar') || d.includes('vr') || d.includes('quantum')) {
+        preSeededCareerScores.softwareEngineer += 8; preSeededCareerScores.dataScientist += 5;
+        preSeededTraits.coding += 5; preSeededTraits.research += 5;
+      } else if (d.includes('competitive') || d.includes('system design') || d.includes('architecture')) {
+        preSeededCareerScores.softwareEngineer += 15;
+        preSeededTraits.logic += 7; preSeededTraits.coding += 5;
+      }
+    }
+
+    // ── Decide the first question ─────────────────────────────────────────────
+    // If Phase 2 domains are available, skip the generic root question and start
+    // with a domain-relevant cognitive reasoning question.  We still use the
+    // question bank so the scoring pipeline works unchanged.
+    let firstQuestion: ReturnType<typeof this.toClientQuestion>;
+    let firstQuestionId: string;
+    let initialAsked: string[];
+    let initialRelevant: string[];
+    let initialRootAnswer: string;
+
+    if (phase2Domains.length > 0) {
+      // Pre-answer root_career_path = 'Private Job' so the branching logic
+      // flows into the tech question path, which is the most relevant for
+      // domain-aware Phase 2 users.  This also sets the BRANCH_TARGET_QUESTION_COUNT
+      // to the 'Private Job' value (7), giving us the right question budget.
+      initialRootAnswer = 'Private Job';
+
+      // Find the best domain-relevant tech question to start with
+      const domainQuestionMap: Record<string, string> = {
+        cyber: 'security_mindset',
+        security: 'security_mindset',
+        'machine learning': 'ml_interest',
+        ' ml': 'ml_interest',
+        ' ai': 'ml_interest',
+        'deep learning': 'ml_interest',
+        'data science': 'ml_interest',
+        'data analytics': 'ml_interest',
+        software: 'coding_experience',
+        'full stack': 'coding_experience',
+        frontend: 'coding_experience',
+        backend: 'coding_experience',
+        mobile: 'coding_experience',
+        web: 'coding_experience',
+        cloud: 'cloud_interest',
+        devops: 'cloud_interest',
+        design: 'design_empathy',
+        blockchain: 'coding_experience',
+        competitive: 'coding_experience',
+      };
+
+      const primaryDomain = phase2Domains[0]?.toLowerCase() ?? '';
+      const matchedId = Object.entries(domainQuestionMap).find(([key]) => primaryDomain.includes(key))?.[1] ?? 'coding_experience';
+      const targetQuestionId = QUESTION_BANK[matchedId] ? matchedId : 'coding_experience';
+
+      firstQuestionId = targetQuestionId;
+      firstQuestion = this.toClientQuestion(QUESTION_BANK[targetQuestionId]);
+      initialAsked = ['root_career_path', 'private_domain', 'tech_track', targetQuestionId];
+      initialRelevant = ROOT_ORDER_BY_PATH['Private Job'] ?? [targetQuestionId];
+    } else {
+      // No Phase 2 context — fall back to the original generic root question
+      firstQuestionId = 'root_career_path';
+      firstQuestion = this.resolveRootQuestion();
+      initialAsked = ['root_career_path'];
+      initialRelevant = ['root_career_path'];
+      initialRootAnswer = '';
+    }
 
     const session: AdaptiveSession = {
       sessionId,
       userId,
-      answers: {},
-      askedQuestionIds: ['root_career_path'],
-      relevantQuestionIds: ['root_career_path'],
-      pendingQuestionId: 'root_career_path',
-      currentPath: [],
-      careerScores: { ...INITIAL_CAREER_SCORES },
-      traits: { ...INITIAL_TRAITS },
+      answers: phase2Domains.length > 0
+        ? {
+            root_career_path: initialRootAnswer,
+            private_domain: 'Tech',
+            tech_track: phase2Domains[0] ?? 'Software Development',
+          }
+        : {},
+      askedQuestionIds: initialAsked,
+      relevantQuestionIds: initialRelevant,
+      pendingQuestionId: firstQuestionId,
+      currentPath: phase2Domains.length > 0
+        ? [`root_career_path:${initialRootAnswer}`, 'private_domain:Tech', `tech_track:${phase2Domains[0] ?? 'Software Development'}`]
+        : [],
+      careerScores: preSeededCareerScores,
+      traits: preSeededTraits,
       confidence: 0,
+      // Store Phase 2 context on the session so scoring stays domain-locked
+      phase2Domains,
+      phase2CareerObjective,
+      phase2Motivation,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    } as AdaptiveSession & { phase2Domains: string[]; phase2CareerObjective: string; phase2Motivation: string };
 
     await this.saveSession(session);
 
+    const targetCount = BRANCH_TARGET_QUESTION_COUNT['Private Job'] ?? 7;
+
     return {
       sessionId,
-      question: rootQuestion,
+      question: firstQuestion,
       confidence: 0,
-      progress: { answered: 0, totalRelevant: BRANCH_TARGET_QUESTION_COUNT.Undecided },
+      progress: { answered: phase2Domains.length > 0 ? 3 : 0, totalRelevant: targetCount },
     };
   }
 
@@ -976,6 +1108,7 @@ export class AdaptiveAssessmentService {
     await prisma.assessmentSession.create({
       data: {
         userId,
+        phase: 3,
         answers: JSON.stringify(session.answers),
         selectedOptions: Object.values(session.answers),
         analysis: JSON.stringify({
@@ -983,6 +1116,7 @@ export class AdaptiveAssessmentService {
           confidence: summary.confidence,
           path: session.currentPath,
           rankedMatches: ranked,
+          traits: session.traits,
           summary,
         }),
         completedAt: new Date(),

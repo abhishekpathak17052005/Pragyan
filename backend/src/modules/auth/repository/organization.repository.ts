@@ -3,9 +3,8 @@
  * Handles organization data access
  */
 
-import { PrismaClient, OrganizationType } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { OrganizationType } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export interface CreateOrganizationData {
   name: string;

@@ -11,10 +11,9 @@
  * - EMAIL_CHANGE: Email change verification (future)
  */
 
-import { PrismaClient, TokenPurpose } from "@prisma/client";
+import { TokenPurpose } from "@prisma/client";
 import crypto from "crypto";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export class VerificationTokenRepository {
   /**

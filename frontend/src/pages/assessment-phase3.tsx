@@ -54,20 +54,21 @@ export default function AssessmentPhase3() {
         setError(null);
       })
       .catch((err: Error) => {
-        // If phase 2 not done, send back
+        // Backend explicitly says Phase 2 is missing → redirect there
         if (err.message?.includes("Phase 2")) {
           toast({ title: "Complete Phase 2 first", description: "Please finish Phase 2 before continuing.", variant: "destructive" });
           navigate("/assessment/phase-2");
         } else {
-          setError(err.message || "Failed to start assessment. Please try again.");
-          setPhase("quiz"); // show error with retry
+          // Any other error (network, 500, etc.) — show retry, don't blame Phase 2
+          setError(err.message || "Unable to start the adaptive assessment. Please try again.");
+          setPhase("quiz");
         }
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Submit adaptive session ────────────────────────────────────────────────
   const submitMutation = useMutation({
-    mutationFn: (sid: string) => assessmentService.submitAdaptiveAssessment(sid),
+    mutationFn: (sid: string) => assessmentService.submitPhase3Assessment(sid),
     onSuccess: async (data) => {
       setError(null);
       try {
@@ -100,7 +101,7 @@ export default function AssessmentPhase3() {
   // ── Answer question ────────────────────────────────────────────────────────
   const answerMutation = useMutation({
     mutationFn: ({ qid, answer }: { qid: string; answer: string }) =>
-      assessmentService.answerAdaptiveQuestion(sessionId!, qid, answer),
+      assessmentService.answerPhase3Question(sessionId!, qid, answer),
     onSuccess: (data) => {
       setConfidence(data.confidence ?? 0);
       if (data.progress) setProgress(data.progress);
@@ -203,12 +204,20 @@ export default function AssessmentPhase3() {
               {error || "Unable to load questions"}
             </h3>
             <p className="text-sm text-muted-foreground mb-6">
-              This may happen if Phase 2 wasn't completed or there was a temporary issue.
+              {error?.includes("Phase 2")
+                ? "Please complete Phase 2 before starting the adaptive assessment."
+                : "Unable to start the adaptive assessment. Please try again."}
             </p>
             <div className="flex gap-3 justify-center">
-              <Link href="/assessment/phase-2">
-                <Button variant="outline" className="rounded-xl">Go back to Phase 2</Button>
-              </Link>
+              {error?.includes("Phase 2") ? (
+                <Link href="/assessment/phase-2">
+                  <Button variant="outline" className="rounded-xl">Go back to Phase 2</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" className="rounded-xl" onClick={() => navigate("/assessment/phase-2")}>
+                  Back to Phase 2
+                </Button>
+              )}
               <Button className="rounded-xl" onClick={() => window.location.reload()}>
                 Retry
               </Button>

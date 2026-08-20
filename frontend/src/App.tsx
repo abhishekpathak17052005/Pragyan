@@ -119,11 +119,12 @@ function Router() {
                 <Route path="/home" component={Home} />
                 <Route path="/profile" component={Profile} />
                 <Route path="/profile/skills" component={Skills} />
-                {/* /feedback is now inside Settings → redirect any stale links */}
                 <Route path="/feedback">
                   {() => { window.location.replace("/settings?tab=feedback"); return null; }}
                 </Route>
-                {/* Information section removed */}
+                <Route path="/settings/notifications" component={SettingsPage} />
+                <Route path="/settings/feedback" component={SettingsPage} />
+                <Route path="/settings/:tab" component={SettingsPage} />
                 <Route path="/settings" component={SettingsPage} />
 
                 {/* Student Routes */}

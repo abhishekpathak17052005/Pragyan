@@ -1,4 +1,5 @@
 import { aiProvider } from '@/services/aiProvider';
+import { AppError } from '@/utils/errors';
 import { mentorMemoryService } from './mentor.memory.service';
 import type { MentorChatInput, MentorContextSnapshot, MentorConversationInput, MentorConversationPayload } from './mentor.types';
 
@@ -25,7 +26,7 @@ function buildPrompt(message: string, context: MentorContextSnapshot, history: A
 
 export class MentorService {
   async startConversation(userId: string, input: MentorConversationInput): Promise<MentorConversationPayload> {
-    const conversation = await mentorMemoryService.upsertConversation(userId, input);
+    const conversation = await mentorMemoryService.createConversation(userId, input.journeyId, input.context, input.title);
     const messages = await mentorMemoryService.getHistory(conversation.id, userId);
 
     return {
@@ -60,21 +61,13 @@ export class MentorService {
         fallbackUsed: false,
         userMessageId: userMessage.id,
       };
-    } catch {
-      const fallback = input.context?.weakSkills?.length
-        ? `Focus on ${input.context.weakSkills[0]} first, then try a short practice task and a 3-question quiz.`
-        : 'Review the current day, revise the core concept, and ship one small practice task today.';
-
-      await mentorMemoryService.appendMessage(conversation.id, 'assistant', fallback, input.context || {});
-
-      return {
+    } catch (error) {
+      console.error('[Mentor] AI provider request failed', {
         conversationId: conversation.id,
-        title: conversation.title,
-        reply: fallback,
         provider: aiProvider.getRuntime().provider,
-        fallbackUsed: true,
-        userMessageId: userMessage.id,
-      };
+        error: error instanceof Error ? error.message : 'Unknown provider error',
+      });
+      throw new AppError(503, 'Pragyan AI is temporarily unavailable. Please try again.');
     }
   }
 

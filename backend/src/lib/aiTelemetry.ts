@@ -102,7 +102,7 @@ function persistTelemetryEvent(event: {
           createdAt: new Date(),
         },
       ],
-    }).catch(() => undefined);
+    } as any).catch(() => undefined);
   } catch {
     // Non-blocking telemetry persistence.
   }

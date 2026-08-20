@@ -21,10 +21,10 @@ export async function logIntelligenceDebugAccess(opts: {
           createdAt: new Date(),
         },
       ],
-    }).catch((e) => {
+    } as any).catch((e) => {
       // non-blocking logging failure — print for server ops debugging
       // eslint-disable-next-line no-console
-      console.error('Intelligence audit log failed', (e as any)?.message || e);
+      console.warn('Intelligence audit log skipped (non-critical):', (e as any)?.message || e);
     });
   } catch (e) {
     // eslint-disable-next-line no-console

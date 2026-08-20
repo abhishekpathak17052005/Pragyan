@@ -3,7 +3,8 @@ import dns from 'dns';
 import { formatStartupDiagnostics, formatStartupFailure } from '@/config/startupDiagnostics';
 import { validateEnv, type ValidatedEnv } from '@/config/validateEnv';
 
-const PORT = config.port;
+const DEFAULT_PORT = Number(process.env.PORT || '3000');
+const PORT = Number.isFinite(DEFAULT_PORT) && DEFAULT_PORT > 0 ? DEFAULT_PORT : 3000;
 
 type PrismaLike = {
   $connect(): Promise<void>;
@@ -145,26 +146,38 @@ async function startServer() {
       console.warn('Failed to initialize cron jobs:', err);
     }
 
-    const server = app.listen(PORT, () => {
-      console.log(`
+    function startOnPort(port: number) {
+      const server = app.listen(port, () => {
+        console.log(`
 ╔══════════════════════════════════════╗
 ║   🚀 Pragyan Backend Server Running  ║
 ║   Environment: ${config.nodeEnv.toUpperCase().padEnd(25)}║
-║   Port: ${PORT.toString().padEnd(32)}║
-║   API Base: http://localhost:${PORT}     ║
+║   Port: ${String(port).padEnd(32)}║
+║   API Base: http://localhost:${port}     ║
 ╚══════════════════════════════════════╝
-      `);
-    });
+        `);
+      });
 
-    server.on('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Stop the process using that port and start the backend again.`);
+      server.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'EADDRINUSE') {
+          const fallbackPort = port === 3000 ? 3001 : port + 1;
+
+          if (config.nodeEnv !== 'production' && port === Number(process.env.PORT || '3000')) {
+            console.warn(`Port ${port} is already in use. Retrying on ${fallbackPort} for local development.`);
+            startOnPort(fallbackPort);
+            return;
+          }
+
+          console.error(`Port ${port} is already in use. Stop the process using that port and start the backend again.`);
+          process.exit(1);
+        }
+
+        console.error('Backend server failed to start:', error.message);
         process.exit(1);
-      }
+      });
+    }
 
-      console.error('Backend server failed to start:', error.message);
-      process.exit(1);
-    });
+    startOnPort(PORT);
   } catch (error) {
     const issue = error instanceof Error ? error.message : String(error);
     console.error(

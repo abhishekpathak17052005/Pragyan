@@ -7,11 +7,9 @@
  * Raw tokens are never persisted to database
  */
 
-import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
 import { randomUUID } from "crypto";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export interface CreateRefreshTokenData {
   token: string;           // Raw token (will be hashed)
