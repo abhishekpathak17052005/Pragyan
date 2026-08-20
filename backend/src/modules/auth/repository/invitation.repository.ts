@@ -3,9 +3,7 @@
  * Handles invitation lifecycle for recruiters and placement officers
  */
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export interface CreateInvitationData {
   email: string;

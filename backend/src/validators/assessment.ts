@@ -8,53 +8,89 @@ import { z } from 'zod';
 
 const PersonalInfoSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  age: z.number().int().min(13, 'Age must be at least 13').max(100, 'Age must be less than 100'),
-  gender: z.enum(['Male', 'Female', 'Other']),
+  lastName:  z.string().min(1, 'Last name is required'),
+  age:       z.number().int().min(13, 'Age must be at least 13').max(100, 'Age must be less than 100'),
+  // Frontend sends: Male | Female | Non-binary | Prefer not to say
+  gender: z.enum(['Male', 'Female', 'Non-binary', 'Other', 'Prefer not to say']),
   country: z.string().min(1, 'Country is required'),
-  state: z.string().min(1, 'State is required'),
-  city: z.string().min(1, 'City is required'),
+  state:   z.string().min(1, 'State is required'),
+  city:    z.string().min(1, 'City is required'),
 });
 
 const EducationSchema = z.object({
-  currentStatus: z.enum(['College Student', 'School Student', 'Working Professional', 'Fresher', 'Other']),
+  // Frontend sends all of: School Student | Diploma Student | College Student |
+  //   Graduate | Working Professional | Career Switcher | Fresher | Other
+  currentStatus: z.enum([
+    'School Student',
+    'Diploma Student',
+    'College Student',
+    'Graduate',
+    'Working Professional',
+    'Career Switcher',
+    'Fresher',
+    'Other',
+  ]),
   highestQualification: z.string().min(1, 'Highest qualification is required'),
-  currentYear: z.string().optional(),
-  degree: z.string().optional(),
-  branch: z.string().optional(),
-  collegeName: z.string().optional(),
-  university: z.string().optional(),
-  cgpaOrPercentage: z.number().optional(),
+  currentYear:          z.string().optional(),
+  degree:               z.string().optional(),
+  branch:               z.string().optional(),
+  collegeName:          z.string().optional(),
+  university:           z.string().optional(),
+  // Frontend sends a string like "8.5" or "85%" — coerce to number, fall back to undefined
+  cgpaOrPercentage: z.union([
+    z.number(),
+    z.string().transform((v) => {
+      const n = parseFloat(v.replace(/[^0-9.]/g, ''));
+      return isNaN(n) ? undefined : n;
+    }),
+    z.undefined(),
+    z.null().transform(() => undefined),
+  ]).optional(),
   expectedGraduationYear: z.number().optional(),
 });
 
 const ExperienceSchema = z.object({
   programmingExperience: z.enum(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
-  previouslyWorked: z.boolean(),
-  yearsOfExperience: z.number().optional(),
-  currentCompany: z.string().optional(),
-  currentRole: z.string().optional(),
+  previouslyWorked:      z.boolean(),
+  yearsOfExperience:     z.number().optional(),
+  currentCompany:        z.string().optional(),
+  currentRole:           z.string().optional(),
 });
 
 export const phase1Schema = z.object({
   personalInfo: PersonalInfoSchema,
-  education: EducationSchema,
-  careerGoal: z.string().min(1, 'Career goal is required'),
-  experience: ExperienceSchema,
+  education:    EducationSchema,
+  careerGoal:   z.string().min(1, 'Career goal is required'),
+  experience:   ExperienceSchema,
 });
 
 export type Phase1Input = z.infer<typeof phase1Schema>;
 
 // ── PHASE 2: Interest & Domain Discovery ──────────────────────────────────────
 
+// The frontend sends skillConfidence as an object with 6 rated keys.
+const SkillConfidenceSchema = z.union([
+  // Object form (what the frontend sends)
+  z.object({
+    programming:    z.string(),
+    mathematics:    z.string(),
+    problemSolving: z.string(),
+    communication:  z.string(),
+    teamwork:       z.string(),
+    leadership:     z.string(),
+  }),
+  // Legacy numeric form (1-10) kept for backward compatibility
+  z.number().int().min(1).max(10),
+]);
+
 export const phase2Schema = z.object({
-  careerObjective: z.string().min(1, 'Career objective is required'),
+  careerObjective:  z.string().min(1, 'Career objective is required'),
   preferredDomains: z.array(z.string()).min(1, 'At least one domain is required'),
   favoriteSubjects: z.array(z.string()).min(3, 'At least 3 subjects are required'),
-  skillConfidence: z.number().int().min(1).max(10).optional(),
-  workStyle: z.array(z.string()).min(1, 'At least one work style is required'),
-  learningStyle: z.array(z.string()).min(1, 'At least one learning style is required'),
-  motivation: z.string().min(1, 'Motivation is required'),
+  skillConfidence:  SkillConfidenceSchema.optional(),
+  workStyle:        z.array(z.string()).min(1, 'At least one work style is required'),
+  learningStyle:    z.array(z.string()).min(1, 'At least one learning style is required'),
+  motivation:       z.string().min(1, 'Motivation is required'),
 });
 
 export type Phase2Input = z.infer<typeof phase2Schema>;

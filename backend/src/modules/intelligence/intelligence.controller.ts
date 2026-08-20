@@ -66,12 +66,12 @@ export const getAuditLogs = asyncHandler(async (req: Request, res: Response) => 
       { $project: { adminId: 1, targetUser: 1, endpoint: 1, filters: 1, env: 1, createdAt: 1 } },
     ],
     cursor: {},
-  }).catch(() => null as any);
+  } as any).catch(() => null as any);
 
   const docs = (aggRes && aggRes.cursor && aggRes.cursor.firstBatch) || aggRes || [];
 
   // total count
-  const countRes = await (globalThis as any).prisma.$runCommandRaw({ count: 'IntelligenceDebugAudit', query: filter }).catch(() => null as any);
+  const countRes = await (globalThis as any).prisma.$runCommandRaw({ count: 'IntelligenceDebugAudit', query: filter } as any).catch(() => null as any);
   const total = countRes?.n ?? countRes?.count ?? 0;
 
   // enrich admin emails in batch

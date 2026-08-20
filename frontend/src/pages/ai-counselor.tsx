@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { aiService, type AIChatMessage, type AICareerRecommendation } from "@/services/aiService";
+import { aiService, type AICareerRecommendation, type MentorContext } from "@/services/aiService";
+import { ApiError } from "@/services/apiClient";
 import { downloadGeneratedNote, inferNoteTopic, isEducationalResponse } from "@/features/notes/noteDownload";
 import { notesService, type NoteFormat } from "@/features/notes/notesService";
 import { Send, Sparkles, RotateCcw, User, Download } from "lucide-react";
@@ -100,57 +101,22 @@ function buildUserPrompt(message: string): string {
 User request: ${message}` : message;
 }
 
-function toApiHistory(items: Message[]): AIChatMessage[] {
-  // ✅ OPTIMIZED: Message windowing
-  // Send only recent messages to reduce payload
-  // If > 15 messages, take last 10 + create summary of earlier ones
-  
-  const MAX_HISTORY_MESSAGES = 15;
-  const RECENT_MESSAGES = 10;
-  
-  if (items.length <= MAX_HISTORY_MESSAGES) {
-    // Short conversation - send all
-    return items.reduce<AIChatMessage[]>((history, message) => {
-      const content = message.text.trim();
-      if (!content) return history;
-      history.push({
-        role: message.role === "ai" ? "assistant" : "user",
-        content,
-      });
-      return history;
-    }, []);
+function getChatErrorMessage(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return "Pragyan AI is temporarily unavailable. Please check your connection and try again.";
   }
-  
-  // Long conversation - use windowing
-  const earlierMessages = items.slice(0, -RECENT_MESSAGES);
-  const recentMessages = items.slice(-RECENT_MESSAGES);
-  
-  const history: AIChatMessage[] = [];
-  
-  // Add summary of earlier conversation
-  const earlierTopics = earlierMessages
-    .filter(m => m.role === "user")
-    .map(m => m.text.substring(0, 50)) // First 50 chars of each user message
-    .join(" | ");
-  
-  if (earlierTopics) {
-    history.push({
-      role: "user",
-      content: `[Earlier in conversation: ${earlierTopics}...]`,
-    });
+
+  switch (error.status) {
+    case 400: return "Please enter a valid career question and try again.";
+    case 401: return "Your session has expired. Please sign in again to use Pragyan AI.";
+    case 403: return "You do not have permission to use Pragyan AI.";
+    case 404: return "The requested counselor conversation could not be found. Start a new chat and try again.";
+    case 409: return "This conversation is no longer available. Start a new chat and try again.";
+    case 429: return "Pragyan AI is receiving too many requests. Please wait a moment and try again.";
+    default: return error.status && error.status >= 500
+      ? "Pragyan AI is temporarily unavailable. Please try again shortly."
+      : error.message;
   }
-  
-  // Add recent messages in full
-  recentMessages.forEach(message => {
-    const content = message.text.trim();
-    if (!content) return;
-    history.push({
-      role: message.role === "ai" ? "assistant" : "user",
-      content,
-    });
-  });
-  
-  return history;
 }
 
 export default function AICounselor() {
@@ -170,20 +136,18 @@ export default function AICounselor() {
     text: buildInitialMessage(userName, topCareer),
   }), [topCareer, userName]);
 
-  const chatContext = useMemo<Record<string, unknown>>(() => ({
-    career: topCareer?.career || user?.careerTrack || user?.currentTitle,
-    goal: user?.careerTrack || user?.currentTitle,
-    skills: user?.skills || [],
+  const chatContext = useMemo<MentorContext>(() => ({
+    career: topCareer?.career || user?.careerGoal || user?.careerTrack || user?.preferredCareerDomain || user?.currentTitle,
+    roadmap: user?.careerTrack || user?.careerGoal || undefined,
+    currentGoal: user?.careerGoal || user?.careerTrack || user?.preferredCareerDomain || user?.currentTitle,
+    completedSkills: user?.skills || [],
     interests: user?.interests || [],
-    skillLevel: user?.skillLevel,
-    experience: user?.experience,
-    education: user?.education || user?.currentCourse,
-    recommendations: recommendations.slice(0, 3),
-  }), [recommendations, topCareer, user]);
+  }), [topCareer, user]);
 
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string>();
   const [noteMenuFor, setNoteMenuFor] = useState<number | null>(null);
   const [downloadingNote, setDownloadingNote] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -213,19 +177,19 @@ export default function AICounselor() {
       actionRoute: route,
       actionLabel: command?.label,
     };
-    const history = toApiHistory(messages);
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setTyping(true);
     try {
       const prompt = buildUserPrompt(trimmedText);
-      const response = await aiService.chat(prompt, history, chatContext);
+      const response = await aiService.chat(prompt, conversationId, chatContext);
+      setConversationId(response.conversationId);
       const aiReply: Message = { role: "ai", text: response.reply, actions: response.actions };
       setMessages(prev => [...prev, aiReply]);
     } catch (error) {
       const aiReply: Message = {
         role: "ai",
-        text: error instanceof Error ? error.message : "Pragyan AI is unavailable right now. Please try again.",
+        text: getChatErrorMessage(error),
       };
       setMessages(prev => [...prev, aiReply]);
     } finally {
@@ -255,13 +219,21 @@ export default function AICounselor() {
     navigate(action.route);
   };
 
-  const reset = () => {
+  const reset = async () => {
     setMessages([initialMessage]);
     setInput("");
     setTyping(false);
     setNoteMenuFor(null);
     setDownloadingNote(null);
-    setTimeout(() => inputRef.current?.focus(), 100);
+    try {
+      const conversation = await aiService.startConversation(chatContext);
+      setConversationId(conversation.conversationId);
+    } catch (error) {
+      setConversationId(undefined);
+      setMessages(prev => [...prev, { role: "ai", text: getChatErrorMessage(error) }]);
+    } finally {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
   };
 
   const downloadNotes = async (message: Message, index: number, format: NoteFormat) => {
@@ -290,7 +262,7 @@ export default function AICounselor() {
           <p className="text-muted-foreground mt-1">Get personalized career guidance powered by Pragyan AI.</p>
         </div>
         <button
-          onClick={reset}
+          onClick={() => void reset()}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           data-testid="button-reset-chat"
         >

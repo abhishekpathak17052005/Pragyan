@@ -6,6 +6,7 @@ export interface MentorContextSnapshot {
   currentDay?: string;
   weakSkills?: string[];
   completedSkills?: string[];
+  interests?: string[];
   adaptiveMode?: string;
   currentGoal?: string;
   placementReadiness?: number;

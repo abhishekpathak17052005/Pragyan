@@ -3,9 +3,8 @@
  * Handles notification delivery and tracking
  */
 
-import { PrismaClient, NotificationType, NotificationChannel } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { NotificationType, NotificationChannel } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export interface CreateNotificationData {
   userId: string;

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   ArrowRight,
@@ -13,6 +14,22 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { getAssessmentProgress, getPhaseDisplayName, type AssessmentProgress } from "@/utils/assessmentProgress";
+import { assessmentService } from "@/services/assessmentService";
+import { useToast } from "@/hooks/use-toast";
+
+// localStorage keys written by phase 4-7 pages — cleared on Start Over
+const PHASE_STORAGE_KEYS = [
+  "pragyan:v1:phase4_result",
+  "pragyan_phase4_result",
+  "pragyan_phase5_result",
+  "pragyan_phase6_result",
+  "pragyan_phase7_result",
+  "pragyan_last_accessed_phase",
+  "pragyan_assessment_phase",
+  "pragyan_latest_assessment_id",
+  "pragyan_latest_assessment_confidence",
+  "pragyan_baseline_payload",
+];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 // This page is the /assessments landing. It shows progress and lets users
@@ -22,8 +39,11 @@ import { getAssessmentProgress, getPhaseDisplayName, type AssessmentProgress } f
 
 export default function Assessments() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [assessmentProgress, setAssessmentProgress] = useState<AssessmentProgress | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(true);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     getAssessmentProgress()
@@ -33,6 +53,33 @@ export default function Assessments() {
       })
       .catch(() => setLoadingProgress(false));
   }, []);
+
+  const handleStartOver = async () => {
+    setResetting(true);
+    try {
+      // 1. Tell the backend to delete phases 3-7 sessions
+      await assessmentService.resetAssessment();
+
+      // 2. Clear all phase-related localStorage keys
+      PHASE_STORAGE_KEYS.forEach((key) => {
+        try { localStorage.removeItem(key); } catch { /* ignore */ }
+      });
+
+      // 3. Invalidate React Query cache so phase data re-fetches fresh
+      await queryClient.invalidateQueries({ queryKey: ["assessment"] });
+
+      toast({ title: "Assessment reset", description: "Starting fresh from Phase 1." });
+      navigate("/assessment/phase-1");
+    } catch (err) {
+      toast({
+        title: "Reset failed",
+        description: err instanceof Error ? err.message : "Could not reset assessment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setResetting(false);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto pb-12">
@@ -74,9 +121,10 @@ export default function Assessments() {
                 <Button
                   variant="outline"
                   className="rounded-xl px-4"
-                  onClick={() => navigate("/assessment/phase-1")}
+                  onClick={handleStartOver}
+                  disabled={resetting}
                 >
-                  Start Over
+                  {resetting ? "Resetting…" : "Start Over"}
                 </Button>
               </div>
             </div>

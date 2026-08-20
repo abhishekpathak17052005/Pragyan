@@ -453,30 +453,81 @@ export const assessmentService = {
     return api.putWithRetry<Phase2SaveResponse>("/assessment/phase-2", data);
   },
 
+  // ── Reset: clear phases 3-7 for a fresh start (keeps phases 1 & 2) ──────────
+
+  async resetAssessment(): Promise<void> {
+    await api.delete<void>("/assessment/reset");
+  },
+
+  // ── Phase 3 GET ───────────────────────────────────────────────────────────────
+
+  async getPhase3(): Promise<{ sessionId: string; phase: number; confidence?: number; traits?: Record<string, number> } | null> {
+    return api.get<{ sessionId: string; phase: number; confidence?: number; traits?: Record<string, number> } | null>("/assessment/phase-3-result");
+  },
+
+  // ── Phase 4 GET ───────────────────────────────────────────────────────────────
+
+  async getPhase4(): Promise<{ sessionId: string; phase: number; technicalConfidence?: number } | null> {
+    return api.get<{ sessionId: string; phase: number; technicalConfidence?: number } | null>("/assessment/phase-4");
+  },
+
+  // ── Phase 5 GET ───────────────────────────────────────────────────────────────
+
+  async getPhase5(): Promise<{ sessionId: string; phase: number; specializationConfidence?: number } | null> {
+    return api.get<{ sessionId: string; phase: number; specializationConfidence?: number } | null>("/assessment/phase-5");
+  },
+
+  // ── Phase 6 GET ───────────────────────────────────────────────────────────────
+
+  async getPhase6(): Promise<{ sessionId: string; phase: number; assessmentValidated?: boolean } | null> {
+    return api.get<{ sessionId: string; phase: number; assessmentValidated?: boolean } | null>("/assessment/phase-6");
+  },
+
   // ── Phase 3: Adaptive AI Assessment ──────────────────────────────────────────
 
   async startPhase3() {
     return api.post<{
-      sessionId:       string;
-      question:        AdaptiveQuestion;
-      confidence:      number;
-      progress:        AdaptiveProgress;
-      baselinePayload: Record<string, unknown>;
-      phase:           number;      nextPhase?:      number;
-      nextPhaseRoute?: string;
-      assessmentCompleted?: boolean;    }>("/assessment/phase-3/start");
+      sessionId:            string;
+      question:             AdaptiveQuestion;
+      confidence:           number;
+      progress:             AdaptiveProgress;
+      phase:                number;
+      nextPhase?:           number;
+      nextPhaseRoute?:      string;
+      assessmentCompleted?: boolean;
+    }>("/assessment/phase-3");
+  },
+
+  // Phase 3 answer — backend: POST /assessment/phase-3/answer
+  async answerPhase3Question(
+    sessionId: string,
+    questionId: string,
+    answer: string | string[]
+  ): Promise<AdaptiveAnswerResponse> {
+    return api.post<AdaptiveAnswerResponse>("/assessment/phase-3/answer", {
+      sessionId,
+      questionId,
+      answer,
+    });
+  },
+
+  // Phase 3 submit — backend: POST /assessment/phase-3/submit
+  async submitPhase3Assessment(sessionId: string): Promise<AdaptiveSubmitResponse> {
+    return api.post<AdaptiveSubmitResponse>("/assessment/phase-3/submit", { sessionId });
   },
 
   // ── Phase 4: Adaptive Domain-Specific Technical Assessment ───────────────────
 
   async startPhase4() {
     return api.post<{
-      sessionId:  string;
-      question:   Phase4Question;
-      confidence: number;
-      progress:   { answered: number; totalRelevant: number };      nextPhase?: number;
-      nextPhaseRoute?: string;
-      assessmentCompleted?: boolean;    }>("/assessment/phase-4/start");
+      sessionId:            string;
+      question:             Phase4Question;
+      confidence:           number;
+      progress:             { answered: number; totalRelevant: number };
+      nextPhase?:           number;
+      nextPhaseRoute?:      string;
+      assessmentCompleted?: boolean;
+    }>("/assessment/phase-4");
   },
 
   async answerPhase4Question(sessionId: string, questionId: string, answer: string) {
@@ -491,16 +542,18 @@ export const assessmentService = {
 
   async submitPhase4Assessment(sessionId: string) {
     return api.post<{
-      resultId:  string;
-      sessionId: string;
-      confidence: number;      nextPhase?: number;
-      nextPhaseRoute?: string;
-      assessmentCompleted?: boolean;      summary: {
-        domainReadiness:       Record<string, number>;
-        technicalStrengths:    string[];
-        technicalWeaknesses:   string[];
-        knowledgeGaps:         string[];
-        skillScores:           Record<string, number>;
+      resultId:             string;
+      sessionId:            string;
+      confidence:           number;
+      nextPhase?:           number;
+      nextPhaseRoute?:      string;
+      assessmentCompleted?: boolean;
+      summary: {
+        domainReadiness:     Record<string, number>;
+        technicalStrengths:  string[];
+        technicalWeaknesses: string[];
+        knowledgeGaps:       string[];
+        skillScores:         Record<string, number>;
       };
     }>("/assessment/phase-4/submit", { sessionId });
   },
@@ -509,18 +562,20 @@ export const assessmentService = {
 
   async startPhase5() {
     return api.post<{
-      sessionId:        string;
-      predictedRoles:   Array<{
-        role: string;
-        matchScore: number;
-        category?: string;
+      sessionId:     string;
+      predictedRoles: Array<{
+        role:            string;
+        matchScore:      number;
+        category?:       string;
         skillsRequired?: string[];
       }>;
-      question:         Phase4Question;
-      confidence:       number;
-      progress:         { answered: number; totalRelevant: number };      nextPhase?:       number;
-      nextPhaseRoute?:  string;
-      assessmentCompleted?: boolean;    }>("/assessment/phase-5/start");
+      question:             Phase4Question;
+      confidence:           number;
+      progress:             { answered: number; totalRelevant: number };
+      nextPhase?:           number;
+      nextPhaseRoute?:      string;
+      assessmentCompleted?: boolean;
+    }>("/assessment/phase-5");
   },
 
   async answerPhase5Question(sessionId: string, questionId: string, answer: string) {
@@ -539,21 +594,21 @@ export const assessmentService = {
       sessionId: string;
       confidence: number;
       summary: {
-        bestCareerRoles:      Array<{
-          role: string;
+        bestCareerRoles: Array<{
+          role:      string;
           matchScore: number;
           category?: string;
-          readiness: number;
+          readiness:  number;
         }>;
-        roleReadiness:        Record<string, number>;
-        specializationLevel:  "Entry-Level" | "Mid-Level" | "Senior" | "Expert";
-        specializationScore:  number;
-        strengthAreas:        string[];
-        missingCompetencies:  string[];
-        confidenceScore:      number;
-        careerFitAnalysis:    string;
-        industryReadiness:    Record<string, number>;
-        nextSteps:            string[];
+        roleReadiness:       Record<string, number>;
+        specializationLevel: "Entry-Level" | "Mid-Level" | "Senior" | "Expert";
+        specializationScore: number;
+        strengthAreas:       string[];
+        missingCompetencies: string[];
+        confidenceScore:     number;
+        careerFitAnalysis:   string;
+        industryReadiness:   Record<string, number>;
+        nextSteps:           string[];
       };
     }>("/assessment/phase-5/submit", { sessionId });
   },
@@ -564,82 +619,82 @@ export const assessmentService = {
     return api.post<{
       sessionId: string;
       confidenceScores: {
-        overall: number;
-        cognitive: number;
-        technical: number;
-        domain: number;
-        careerRole: number;
+        overall:       number;
+        cognitive:     number;
+        technical:     number;
+        domain:        number;
+        careerRole:    number;
         communication: number;
-        learning: number;
+        learning:      number;
       };
       skillGapAnalysis: {
         technicalSkills: {
-          strong: string[];
+          strong:       string[];
           intermediate: string[];
-          beginner: string[];
-          missing: string[];
+          beginner:     string[];
+          missing:      string[];
         };
         softSkills: {
           communication: string;
-          teamwork: string;
-          leadership: string;
-          adaptability: string;
+          teamwork:      string;
+          leadership:    string;
+          adaptability:  string;
           problemSolving: string;
         };
         careerReadiness: {
-          industryReadiness: number;
-          internshipReadiness: number;
-          placementReadiness: number;
-          advancedLearningReadiness: number;
+          industryReadiness:          number;
+          internshipReadiness:        number;
+          placementReadiness:         number;
+          advancedLearningReadiness:  number;
         };
       };
       readinessScores: {
-        overallCareerReadiness: number;
-        technicalReadiness: number;
-        cognitiveReadiness: number;
-        domainReadiness: number;
-        communicationReadiness: number;
-        leadershipReadiness: number;
+        overallCareerReadiness:  number;
+        technicalReadiness:      number;
+        cognitiveReadiness:      number;
+        domainReadiness:         number;
+        communicationReadiness:  number;
+        leadershipReadiness:     number;
       };
-      needsFollowUp: boolean;
-      lowConfidenceAreas: string[];
-      followUpQuestions: Array<{
-        questionId: string;
+      needsFollowUp:       boolean;
+      lowConfidenceAreas:  string[];
+      followUpQuestions:   Array<{
+        questionId:   string;
         questionText: string;
         questionType: 'MCQ' | 'Short-Answer' | 'Scenario' | 'Self-Assessment';
-        options: string[];
-        targetArea: string;
-        reason: string;
+        options:      string[];
+        targetArea:   string;
+        reason:       string;
       }>;
       assessmentValidated: boolean;
-      validationStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'NEEDS_MORE_DATA';
+      validationStatus:    'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'NEEDS_MORE_DATA';
       completionPercentage: number;
-      recommendations: string[];
-      nextSteps: string[];
-    }>("/assessment/phase-6/start");
+      recommendations:     string[];
+      nextSteps:           string[];
+    }>("/assessment/phase-6");
   },
 
   async answerPhase6Question(sessionId: string, questionId: string, answer: string) {
     return api.post<{
       confidenceScores: {
-        overall: number;
-        cognitive: number;
-        technical: number;
-        domain: number;
-        careerRole: number;
+        overall:       number;
+        cognitive:     number;
+        technical:     number;
+        domain:        number;
+        careerRole:    number;
         communication: number;
-        learning: number;
+        learning:      number;
       };
-      assessmentValidated: boolean;
-      validationStatus: 'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'NEEDS_MORE_DATA';
+      assessmentValidated:  boolean;
+      validationStatus:     'PENDING' | 'IN_PROGRESS' | 'COMPLETE' | 'NEEDS_MORE_DATA';
       completionPercentage: number;
       nextQuestion: {
-        questionId: string;
+        questionId:   string;
         questionText: string;
         questionType: 'MCQ' | 'Short-Answer' | 'Scenario' | 'Self-Assessment';
-        options: string[];
-        targetArea: string;
-        reason: string;
+        options:      string[];
+        targetArea:   string;
+        reason:       string;
       } | null;
       allQuestionsAnswered: boolean;
     }>("/assessment/phase-6/answer", { sessionId, questionId, answer });
@@ -647,62 +702,64 @@ export const assessmentService = {
 
   async validatePhase6Assessment(sessionId: string) {
     return api.post<{
-      assessmentComplete: boolean;
-      proceedToPhase7: boolean;
-      nextPhase?: number;
-      nextPhaseRoute?: string;
+      assessmentComplete:   boolean;
+      proceedToPhase7:      boolean;
+      nextPhase?:           number;
+      nextPhaseRoute?:      string;
       assessmentCompleted?: boolean;
       confidenceScores: {
-        overall: number;
-        cognitive: number;
-        technical: number;
-        domain: number;
-        careerRole: number;
+        overall:       number;
+        cognitive:     number;
+        technical:     number;
+        domain:        number;
+        careerRole:    number;
         communication: number;
-        learning: number;
+        learning:      number;
       };
       skillGapAnalysis: {
         technicalSkills: {
-          strong: string[];
+          strong:       string[];
           intermediate: string[];
-          beginner: string[];
-          missing: string[];
+          beginner:     string[];
+          missing:      string[];
         };
         softSkills: {
-          communication: string;
-          teamwork: string;
-          leadership: string;
-          adaptability: string;
+          communication:  string;
+          teamwork:       string;
+          leadership:     string;
+          adaptability:   string;
           problemSolving: string;
         };
         careerReadiness: {
-          industryReadiness: number;
-          internshipReadiness: number;
-          placementReadiness: number;
+          industryReadiness:         number;
+          internshipReadiness:       number;
+          placementReadiness:        number;
           advancedLearningReadiness: number;
         };
       };
       readinessScores: {
-        overallCareerReadiness: number;
-        technicalReadiness: number;
-        cognitiveReadiness: number;
-        domainReadiness: number;
-        communicationReadiness: number;
-        leadershipReadiness: number;
+        overallCareerReadiness:  number;
+        technicalReadiness:      number;
+        cognitiveReadiness:      number;
+        domainReadiness:         number;
+        communicationReadiness:  number;
+        leadershipReadiness:     number;
       };
       recommendations: string[];
-      nextSteps: string[];
+      nextSteps:       string[];
     }>("/assessment/phase-6/validate", { sessionId });
   },
 
   // ── Phase 7: AI Career Recommendation Engine & Final Report ──────────────────
 
+  // Backend: POST /assessment/phase-7
   async generatePhase7Report() {
-    return api.post<Phase7AIReport>("/assessment/phase-7/generate");
+    return api.post<Phase7AIReport>("/assessment/phase-7");
   },
 
+  // Backend: GET /assessment/phase-7
   async getPhase7Report() {
-    return api.get<Phase7AIReport | null>("/assessment/report");
+    return api.get<Phase7AIReport | null>("/assessment/phase-7");
   },
 };
 

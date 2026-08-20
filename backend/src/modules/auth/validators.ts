@@ -111,9 +111,13 @@ export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 
 /**
  * Refresh Token Validator
+ * refreshToken is optional here — the controller reads it from the cookie
+ * if it is absent from the request body, and returns 400 itself if neither
+ * source has a token.  Requiring it here would produce a 422 validation
+ * error before the controller can give a useful 400 response.
  */
 export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1, "Refresh token required"),
+  refreshToken: z.string().min(1).optional(),
 });
 
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;

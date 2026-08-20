@@ -23,6 +23,12 @@ import { userRepository, auditRepository, refreshTokenRepository } from "../repo
 import { LoginFailureReason } from "../repository/audit.repository";
 import { publishLoginSuccess, publishLoginFailed } from "../events";
 import { LoginThrottleService } from "./login-throttle.service";
+import {
+  InvalidCredentialsError,
+  EmailNotVerifiedError,
+  AccountInactiveError,
+  MaxLoginAttemptsError,
+} from "../errors";
 import { generateAccessToken } from "@/utils/jwt";
 import { PasswordUtil } from "@/utils/password";
 import crypto from "crypto";
@@ -45,7 +51,7 @@ export class LoginService {
     const throttle = LoginThrottleService.isLocked(input.email);
     if (throttle.isLocked) {
       const minutesRemaining = Math.ceil(throttle.remainingMs / 60000);
-      throw new Error(`Account locked. Try again in ${minutesRemaining} minutes.`);
+      throw new MaxLoginAttemptsError(`Account locked. Try again in ${minutesRemaining} minutes.`);
     }
 
     // Step 1: Find user by email
@@ -54,19 +60,9 @@ export class LoginService {
     if (!user) {
       // Record failed attempt (throttling)
       LoginThrottleService.recordFailedAttempt(input.email);
-      
-      // Log failed login attempt with structured reason
-      // Note: Use a system user ID since we don't have the user
-      await auditRepository.log({
-        targetUserId: "system",  // Unknown user
-        performedByUserId: "system",
-        organizationId: "",
-        action: "LOGIN",
-        status: "FAILURE",
-        failureReason: LoginFailureReason.USER_NOT_FOUND,
-        ipAddress,
-        userAgent,
-      });
+
+      // Skip audit log when no real user exists: AuditLog requires valid Mongo ObjectId references.
+      // This is intentionally non-blocking so login can fail gracefully without a DB error.
       
       // Log failed login attempt
       await publishLoginFailed({
@@ -78,7 +74,7 @@ export class LoginService {
       });
       
       // Generic error message (don't reveal if email exists or not)
-      throw new Error("Invalid email or password");
+      throw new InvalidCredentialsError("Invalid email or password");
     }
 
     // Step 2: Email verification check
@@ -107,7 +103,7 @@ export class LoginService {
         timestamp: new Date(),
       });
       
-      throw new Error("Email not verified. Please verify your email first.");
+      throw new EmailNotVerifiedError("Email not verified. Please verify your email first.");
     }
 
     // Step 3: Check account status
@@ -142,9 +138,9 @@ export class LoginService {
       });
       
       if (user.accountStatus === "EMAIL_PENDING") {
-        throw new Error("Email not verified. Please verify your email first.");
+        throw new EmailNotVerifiedError("Email not verified. Please verify your email first.");
       }
-      throw new Error(`Account status is ${user.accountStatus}. Please contact support.`);
+      throw new AccountInactiveError(`Account status is ${user.accountStatus}. Please contact support.`);
     }
 
     // Step 4: Verify password
@@ -176,7 +172,7 @@ export class LoginService {
       });
       
       // Generic error message (don't reveal if email exists)
-      throw new Error("Invalid email or password");
+      throw new InvalidCredentialsError("Invalid email or password");
     }
 
     // Step 4a: Auto-rehash if password was hashed with BCrypt (migration to Argon2id)

@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
-import { Link, useSearch } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { Link, useLocation, useSearch } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, Lock, Palette, Shield,
   Eye, EyeOff, Moon, Sun, Smartphone,
@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
+import { integrationService, type IntegrationProvider } from "@/services/integrationService";
 import { useToast } from "@/hooks/use-toast";
 import { TwoFactorSetupModal } from "@/components/TwoFactorSetupModal";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
@@ -55,13 +56,33 @@ function SH({ children }: { children: React.ReactNode }) {
 export default function Settings() {
   const { user, logout, reloadUser } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Support deep-link: /settings?tab=feedback
+  const [location, navigate] = useLocation();
   const search = useSearch();
-  const tabParam = new URLSearchParams(search).get("tab") as Section | null;
-  const [active, setActive] = useState<Section>(
-    tabParam && sections.some((s) => s.id === tabParam) ? tabParam : "notifications"
-  );
+  const [active, setActive] = useState<Section>("notifications");
+
+  useEffect(() => {
+    const path = location.split("?")[0];
+    const tabParam = new URLSearchParams(search).get("tab") as Section | null;
+
+    if (path === "/settings/notifications") {
+      setActive("notifications");
+      return;
+    }
+
+    if (path === "/settings/feedback") {
+      setActive("feedback");
+      return;
+    }
+
+    if (tabParam && sections.some((s) => s.id === tabParam)) {
+      setActive(tabParam);
+      return;
+    }
+
+    setActive("notifications");
+  }, [location, search]);
 
   const [saved, setSaved] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -72,6 +93,58 @@ export default function Settings() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const { data: integrations = [], isLoading: integrationsLoading } = useQuery({
+    queryKey: ['integrations'],
+    queryFn: integrationService.getStatuses,
+    retry: false,
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const result = params.get('integration');
+    const provider = params.get('provider');
+    if (!result || !provider) return;
+    if (result === 'connected') {
+      toast({ title: `${provider === 'google' ? 'Google Calendar' : provider} connected`, description: 'Your integration was synchronized successfully.' });
+      void queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      void reloadUser();
+    } else {
+      toast({ title: 'Integration not connected', description: params.get('message') || 'Please try again.', variant: 'destructive' });
+    }
+    navigate('/settings?tab=account', { replace: true });
+  }, [search, toast, queryClient, reloadUser, navigate]);
+
+  const connectIntegration = async (provider: IntegrationProvider) => {
+    try {
+      const { authorizationUrl } = await integrationService.connect(provider);
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      toast({ title: 'Unable to start connection', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+    }
+  };
+
+  const syncIntegration = async (provider: IntegrationProvider) => {
+    try {
+      await integrationService.sync(provider);
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      await reloadUser();
+      toast({ title: 'Integration synchronized' });
+    } catch (error) {
+      toast({ title: 'Sync failed', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+    }
+  };
+
+  const disconnectIntegration = async (provider: IntegrationProvider) => {
+    if (!window.confirm('Disconnect this integration? Its secure tokens and imported external data will be removed.')) return;
+    try {
+      await integrationService.disconnect(provider);
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      toast({ title: 'Integration disconnected' });
+    } catch (error) {
+      toast({ title: 'Disconnect failed', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+    }
+  };
 
   // ── Notifications / Appearance / Privacy state ──────────────────────────────
   const [notifs, setNotifs] = useState({
@@ -468,18 +541,29 @@ export default function Settings() {
                 </Link>
               </div>
               <SH>Integrations</SH>
-              {[
-                { label: "LinkedIn", desc: "Import your experience and certifications.", connected: false },
-                { label: "GitHub",   desc: "Showcase your repositories and coding activity.", connected: true  },
-                { label: "Google Calendar", desc: "Sync roadmap milestones and study schedule.", connected: false },
-              ].map(({ label, desc, connected }) => (
-                <Row key={label} label={label} desc={desc}>
-                  <Button variant={connected ? "outline" : "default"} size="sm" className="rounded-xl"
-                    data-testid={`button-${connected ? "disconnect" : "connect"}-${label.toLowerCase()}`}>
-                    {connected ? "Disconnect" : "Connect"}
-                  </Button>
-                </Row>
-              ))}
+              {([
+                { provider: 'linkedin' as const, label: 'LinkedIn', desc: 'Connect your approved LinkedIn basic profile.' },
+                { provider: 'github' as const, label: 'GitHub', desc: 'Showcase your repositories and technical stack.' },
+                { provider: 'google' as const, label: 'Google Calendar', desc: 'Sync private schedule summaries for planning.' },
+              ]).map(({ provider, label, desc }) => {
+                const status = integrations.find((item) => item.provider === provider);
+                const connected = status?.connected && !status.tokenExpired;
+                const summary = status?.summary || {};
+                const suffix = connected && status?.lastSyncedAt
+                  ? ` Last synced ${new Date(status.lastSyncedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}.`
+                  : status?.tokenExpired ? ' Authorization expired; reconnect to continue.' : '';
+                return (
+                  <Row key={provider} label={label} desc={`${desc}${suffix}`}>
+                    {integrationsLoading ? <span className="text-xs text-muted-foreground">Checking…</span> : connected ? (
+                      <div className="flex items-center gap-2">
+                        {Object.keys(summary).length > 0 && <span className="text-xs text-green-600 font-medium">Connected</span>}
+                        <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void syncIntegration(provider)} data-testid={`button-sync-${provider}`}>Sync</Button>
+                        <Button variant="outline" size="sm" className="rounded-xl text-destructive" onClick={() => void disconnectIntegration(provider)} data-testid={`button-disconnect-${provider}`}>Disconnect</Button>
+                      </div>
+                    ) : <Button size="sm" className="rounded-xl" onClick={() => void connectIntegration(provider)} data-testid={`button-connect-${provider}`}>{status?.tokenExpired ? 'Reconnect' : 'Connect'}</Button>}
+                  </Row>
+                );
+              })}
               <SH>Danger Zone</SH>
               <div className="border border-destructive/30 rounded-xl p-5 space-y-4 bg-destructive/5">
                 <div className="flex items-center justify-between">

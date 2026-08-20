@@ -3,7 +3,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+const projectRootEnv = path.resolve(process.cwd(), '.env');
+const backendEnv = path.resolve(process.cwd(), 'backend/.env');
+const relativeBackendEnv = path.resolve(__dirname, '../../.env');
+
+for (const envPath of [projectRootEnv, backendEnv, relativeBackendEnv]) {
+  dotenv.config({ path: envPath });
+}
+
 dotenv.config();
 
 const requiredEnvVars = [
@@ -34,6 +41,9 @@ export const config = {
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || null,
     githubClientId: process.env.GITHUB_CLIENT_ID || null,
     githubClientSecret: process.env.GITHUB_CLIENT_SECRET || null,
+    linkedinClientId: process.env.LINKEDIN_CLIENT_ID || null,
+    linkedinClientSecret: process.env.LINKEDIN_CLIENT_SECRET || null,
+    integrationTokenEncryptionKey: process.env.INTEGRATION_TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || null,
     sessionSecret: (() => {
       const secret = process.env.SESSION_SECRET;
       if (!secret) {

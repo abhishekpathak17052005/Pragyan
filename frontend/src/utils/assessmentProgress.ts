@@ -1,6 +1,13 @@
 /**
  * Assessment Progress Tracker
- * Determines which phase the user should resume from based on backend data
+ *
+ * Determines which phase the user should resume from.
+ * All phase completion checks use the backend API — localStorage is never
+ * the source of truth, so Start Over (which calls DELETE /assessment/reset)
+ * is immediately reflected here without needing a page reload or cache bust.
+ *
+ * localStorage is still written by individual phase pages as a performance
+ * hint, but this tracker ignores those values and always queries the DB.
  */
 
 import { assessmentService } from "@/services/assessmentService";
@@ -14,6 +21,8 @@ export interface AssessmentProgress {
 }
 
 const TOTAL_PHASES = 7;
+
+// Kept for backward-compat with any code that imported this constant.
 export const PHASE4_RESULT_STORAGE_KEY = "pragyan:v1:phase4_result";
 
 const PHASE_ROUTES: Record<number, string> = {
@@ -28,133 +37,114 @@ const PHASE_ROUTES: Record<number, string> = {
 };
 
 /**
- * Determines which assessment phase the user should continue from
- * Checks backend for completed phases and returns resume information
+ * Determines which assessment phase the user should continue from.
+ * Each phase is checked sequentially — a phase is only checked if all
+ * prior phases are confirmed complete, preventing skipping.
  */
 export async function getAssessmentProgress(): Promise<AssessmentProgress> {
   try {
     const completedPhases: number[] = [];
-    let currentPhase = 1; // Default: start from phase 1
+    let currentPhase = 1;
 
-    // Check Phase 1
+    // ── Phase 1 ───────────────────────────────────────────────────────────────
     try {
-      const phase1Data = await assessmentService.getPhase1();
-      if (phase1Data && phase1Data.personalInfo) {
+      const p1 = await assessmentService.getPhase1();
+      if (p1?.personalInfo) {
         completedPhases.push(1);
         currentPhase = 2;
       }
     } catch {
-      // Phase 1 not completed
+      // not completed — stop here
     }
 
-    // Check Phase 2
+    // ── Phase 2 ───────────────────────────────────────────────────────────────
     if (completedPhases.includes(1)) {
       try {
-        const phase2Data = await assessmentService.getPhase2();
-        if (phase2Data && phase2Data.preferredDomains?.length > 0) {
+        const p2 = await assessmentService.getPhase2();
+        if (p2?.preferredDomains && p2.preferredDomains.length > 0) {
           completedPhases.push(2);
           currentPhase = 3;
         }
       } catch {
-        // Phase 2 not completed
+        // not completed
       }
     }
 
-    // Check Phase 3 (adaptive assessment)
+    // ── Phase 3 — adaptive assessment (stored with phase=3 in DB) ─────────────
     if (completedPhases.includes(2)) {
       try {
-        const latestAssessment = await assessmentService.getLatestAssessment();
-        if (latestAssessment && latestAssessment.id) {
+        const p3 = await assessmentService.getPhase3();
+        // getPhase3 returns null when no phase-3 session exists after a reset
+        if (p3?.sessionId) {
           completedPhases.push(3);
           currentPhase = 4;
         }
       } catch {
-        // Phase 3 not completed
+        // not completed
       }
     }
 
-    // Check Phase 4 (technical assessment)
+    // ── Phase 4 — technical assessment ────────────────────────────────────────
     if (completedPhases.includes(3)) {
       try {
-        const phase4Result =
-          localStorage.getItem(PHASE4_RESULT_STORAGE_KEY) ||
-          localStorage.getItem("pragyan_phase4_result");
-        if (phase4Result) {
-          const parsed = JSON.parse(phase4Result);
-          if (parsed && parsed.resultId) {
-            completedPhases.push(4);
-            currentPhase = 5;
-          }
+        const p4 = await assessmentService.getPhase4();
+        // Phase 4 submit stores technicalConfidence in analysis
+        if (p4?.sessionId) {
+          completedPhases.push(4);
+          currentPhase = 5;
         }
       } catch {
-        // Phase 4 not completed
+        // not completed
       }
     }
 
-    // Check Phase 5 (specialization detection)
+    // ── Phase 5 — specialization detection ────────────────────────────────────
     if (completedPhases.includes(4)) {
       try {
-        const phase5Result = localStorage.getItem("pragyan_phase5_result");
-        if (phase5Result) {
-          const parsed = JSON.parse(phase5Result);
-          // Phase 5 returns { sessionId, confidence, summary } — no resultId
-          if (parsed && (parsed.resultId || parsed.sessionId || parsed.summary)) {
-            completedPhases.push(5);
-            currentPhase = 6;
-          }
+        const p5 = await assessmentService.getPhase5();
+        if (p5?.sessionId) {
+          completedPhases.push(5);
+          currentPhase = 6;
         }
       } catch {
-        // Phase 5 not completed
+        // not completed
       }
     }
 
-    // Check Phase 6 (confidence validation)
+    // ── Phase 6 — confidence validation ───────────────────────────────────────
     if (completedPhases.includes(5)) {
       try {
-        const phase6Result = localStorage.getItem("pragyan_phase6_result");
-        if (phase6Result) {
-          const parsed = JSON.parse(phase6Result);
-          if (parsed && parsed.assessmentComplete) {
-            completedPhases.push(6);
-            currentPhase = 7;
-          }
+        const p6 = await assessmentService.getPhase6();
+        // Phase 6 is "complete" when assessmentValidated is true in analysis
+        if (p6?.sessionId) {
+          completedPhases.push(6);
+          currentPhase = 7;
         }
       } catch {
-        // Phase 6 not completed
+        // not completed
       }
     }
 
-    // Check Phase 7 (career recommendations)
+    // ── Phase 7 — final report ─────────────────────────────────────────────────
     if (completedPhases.includes(6)) {
       try {
-        const phase7Result = localStorage.getItem("pragyan_phase7_result");
-        if (phase7Result) {
-          const parsed = JSON.parse(phase7Result);
-          if (parsed && parsed.completed) {
-            completedPhases.push(7);
-            // All phases complete, stay on Phase 7 or go to dashboard
-            currentPhase = 7;
-          }
+        const p7 = await assessmentService.getPhase7Report();
+        if (p7 && (p7 as any)?.sessionId) {
+          completedPhases.push(7);
+          currentPhase = 7; // stay on 7 / go to dashboard
         }
       } catch {
-        // Phase 7 not completed
+        // not completed
       }
     }
 
     const progressPercent = Math.round((completedPhases.length / TOTAL_PHASES) * 100);
-    const nextPhaseUrl = PHASE_ROUTES[currentPhase] || PHASE_ROUTES[1];
+    const nextPhaseUrl = PHASE_ROUTES[currentPhase] ?? PHASE_ROUTES[1];
     const canResume = completedPhases.length > 0;
 
-    return {
-      currentPhase,
-      completedPhases,
-      nextPhaseUrl,
-      canResume,
-      progressPercent,
-    };
+    return { currentPhase, completedPhases, nextPhaseUrl, canResume, progressPercent };
   } catch (error) {
-    console.error("[getAssessmentProgress] Error:", error);
-    // Default fallback: start from phase 1
+    console.error("[getAssessmentProgress] Unexpected error:", error);
     return {
       currentPhase: 1,
       completedPhases: [],
@@ -166,27 +156,20 @@ export async function getAssessmentProgress(): Promise<AssessmentProgress> {
 }
 
 /**
- * Checks if user can skip to a specific phase
- * Ensures prerequisites are met
+ * Returns true only when every phase before `targetPhase` is in `completedPhases`.
+ * Phase 1 is always accessible.
  */
 export function canAccessPhase(targetPhase: number, completedPhases: number[]): boolean {
-  // Phase 1 is always accessible
   if (targetPhase === 1) return true;
-
-  const completedPhaseSet = new Set(completedPhases);
-
-  // All other phases require the previous phase to be completed
+  const done = new Set(completedPhases);
   for (let i = 1; i < targetPhase; i++) {
-    if (!completedPhaseSet.has(i)) {
-      return false;
-    }
+    if (!done.has(i)) return false;
   }
-
   return true;
 }
 
 /**
- * Gets display name for a phase
+ * Human-readable name for each assessment phase.
  */
 export function getPhaseDisplayName(phase: number): string {
   const names: Record<number, string> = {
@@ -198,27 +181,24 @@ export function getPhaseDisplayName(phase: number): string {
     6: "Confidence Validation",
     7: "Career Recommendations",
   };
-  return names[phase] || `Phase ${phase}`;
+  return names[phase] ?? `Phase ${phase}`;
 }
 
 /**
- * Stores last accessed phase in localStorage for quick resume
+ * Persists the last accessed phase to localStorage as a fast-resume hint.
+ * The tracker itself never reads this — it always queries the backend.
  */
 export function saveLastAccessedPhase(phase: number): void {
-  try {
-    localStorage.setItem("pragyan_last_accessed_phase", String(phase));
-  } catch {
-    // Ignore localStorage errors
-  }
+  try { localStorage.setItem("pragyan_last_accessed_phase", String(phase)); } catch { /* ignore */ }
 }
 
 /**
- * Retrieves last accessed phase from localStorage
+ * Reads the last accessed phase from localStorage.
  */
 export function getLastAccessedPhase(): number | null {
   try {
-    const stored = localStorage.getItem("pragyan_last_accessed_phase");
-    return stored ? parseInt(stored, 10) : null;
+    const v = localStorage.getItem("pragyan_last_accessed_phase");
+    return v ? parseInt(v, 10) : null;
   } catch {
     return null;
   }

@@ -21,10 +21,26 @@ export interface AIChatAction {
 }
 
 export interface AIChatResponse {
+  conversationId: string;
   reply: string;
   provider?: string;
   fallbackUsed?: boolean;
   actions?: AIChatAction[];
+}
+
+export interface MentorContext {
+  career?: string;
+  roadmap?: string;
+  currentDay?: string;
+  weakSkills?: string[];
+  completedSkills?: string[];
+  currentGoal?: string;
+  placementReadiness?: number;
+}
+
+export interface MentorConversation {
+  conversationId: string;
+  title: string;
 }
 
 export interface AssessmentReportInput {
@@ -43,8 +59,11 @@ export interface LearningRoadmapInput {
 }
 
 export const aiService = {
-  chat(message: string, history: AIChatMessage[] = [], context: Record<string, unknown> = {}) {
-    return api.post<AIChatResponse>("/ai/chat", { message, history, context });
+  startConversation(context: MentorContext = {}) {
+    return api.post<MentorConversation>("/mentor/conversation", { context });
+  },
+  chat(message: string, conversationId: string | undefined, context: MentorContext = {}) {
+    return api.post<AIChatResponse>("/mentor/chat", { message, conversationId, context });
   },
   recordActionEvent(payload: { actionId: string; actionType: string; label?: string; route: string; source?: string }) {
     return api.post('/ai/action-event', payload);

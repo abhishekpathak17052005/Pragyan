@@ -3,9 +3,9 @@
  * Handles all audit log database operations
  */
 
-import { PrismaClient, AuditAction } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { AuditAction } from "@prisma/client";
+import { ObjectId } from "mongodb";
+import { prisma } from "@/lib/prisma";
 
 export enum LoginFailureReason {
   USER_NOT_FOUND = "USER_NOT_FOUND",
@@ -32,18 +32,34 @@ export interface AuditLogData {
 }
 
 export class AuditRepository {
+  private isValidObjectId(value?: string | null): boolean {
+    if (!value || typeof value !== "string") return false;
+    return ObjectId.isValid(value) && new ObjectId(value).toString() === value;
+  }
+
   /**
    * Log audit event
    */
   async log(data: AuditLogData) {
+    if (!this.isValidObjectId(data.targetUserId) || !this.isValidObjectId(data.performedByUserId)) {
+      console.warn("[AuditRepository] Skipping audit log for invalid ObjectId fields", {
+        targetUserId: data.targetUserId,
+        performedByUserId: data.performedByUserId,
+        action: data.action,
+      });
+      return null;
+    }
+
+    const organizationId = data.organizationId && this.isValidObjectId(data.organizationId) ? data.organizationId : null;
+
     return prisma.auditLog.create({
       data: {
         targetUserId: data.targetUserId,
         performedByUserId: data.performedByUserId,
-        organizationId: data.organizationId && data.organizationId !== "" ? data.organizationId : null,
+        organizationId,
         action: data.action,
         status: data.status,
-        failureReason: data.failureReason,  // Structured reason
+        failureReason: data.failureReason,
         ipAddress: data.ipAddress,
         userAgent: data.userAgent,
         resourceType: data.resourceType,

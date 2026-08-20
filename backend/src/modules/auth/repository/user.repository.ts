@@ -4,10 +4,9 @@
  * Only CRUD operations - business logic belongs in service
  */
 
-import { PrismaClient, UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import type { CreateUserData } from "@/shared/auth";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export class UserRepository {
   /**

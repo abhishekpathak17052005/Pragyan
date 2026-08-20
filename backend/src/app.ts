@@ -54,10 +54,12 @@ import intelligenceRoutes from '@/modules/intelligence/intelligence.routes';
 import notesRoutes from '@/modules/notes/notes.routes';
 import recruitmentRoutes from '@/modules/recruitment/recruitment.routes';
 import placementRoutes from '@/modules/placement/placement.routes';
+import integrationRoutes from '@/modules/integrations/integration.routes';
 
 import { ensureIntelligenceIndexes } from '@/modules/intelligence/intelligence.indexes';
 import { csvCareerDatasetService } from '@/services/csv-career-dataset';
 import healthRoutes from '@/routes/health';
+import searchRoutes from '@/routes/search';
 import path from 'path';
 import fs from 'fs';
 
@@ -127,6 +129,7 @@ if (config.nodeEnv === 'development') {
 // ============ ROUTES ============
 
 app.use('/api/health', healthRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api/assessment/hybrid/parse-resume', logParseResumeRequest);
 
 // API routes
@@ -160,6 +163,7 @@ app.use('/api/journey', journeyRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/integrations', integrationRoutes);
 app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/placement', placementRoutes);
 app.use('/api/admin', adminRoutes);
@@ -240,4 +244,3 @@ void (async () => {
 })();
 
 export default app;
-

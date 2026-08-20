@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/services/authService";
 import { profileService } from "@/services/profileService";
+import { integrationService } from "@/services/integrationService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -341,9 +342,14 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { isLoading: profileLoading } = useQuery({
+  const { data: profileData, isLoading: profileLoading } = useQuery({
     queryKey: ["profile"],
     queryFn: profileService.getProfile,
+    retry: false,
+  });
+  const { data: integrations = [] } = useQuery({
+    queryKey: ['integrations'],
+    queryFn: integrationService.getStatuses,
     retry: false,
   });
 
@@ -567,6 +573,39 @@ export default function Profile() {
               </Field>
             </div>
           </SectionCard>
+
+          {(integrations.some((integration) => integration.connected) || profileData?.githubRepositories?.length) && (
+            <SectionCard title="Connected Integrations" icon={Code2}>
+              <div className="space-y-4">
+                {profileData?.githubRepositories?.length ? (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Github className="w-4 h-4" />
+                      <p className="text-sm font-semibold text-foreground">GitHub projects</p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {(profileData.githubRepositories as Array<{ id: string; name: string; description?: string | null; language?: string | null; htmlUrl: string; stars?: number }>).slice(0, 4).map((repository) => (
+                        <a key={repository.id} href={repository.htmlUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-border p-3 hover:bg-muted transition-colors">
+                          <p className="text-sm font-semibold text-foreground truncate">{repository.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{repository.description || repository.language || 'Repository'}</p>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {integrations.filter((integration) => integration.provider !== 'github' && integration.connected).map((integration) => (
+                  <div key={integration.provider} className="rounded-xl border border-border p-3">
+                    <p className="text-sm font-semibold text-foreground">{integration.provider === 'google' ? 'Google Calendar' : 'LinkedIn'}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {integration.provider === 'google'
+                        ? `${Number(integration.summary?.upcomingRelevantEvents || 0)} upcoming events in your private planning summary.`
+                        : 'Basic profile access is connected. LinkedIn education, experience, and posts are shown only when an approved API scope makes them available.'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
 
           {/* ── About / Bio ── */}
           <SectionCard title="About" icon={FileText}>

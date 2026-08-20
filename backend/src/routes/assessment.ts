@@ -19,8 +19,38 @@ const router = Router();
 router.use(authenticate);
 
 /**
- * PHASE 1: User Discovery & Profile Collection
+ * RESET: Clear phases 3–7 for a fresh start (keep phases 1 & 2 as baseline)
  */
+router.delete(
+  '/reset',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+    const userId = req.user.id;
+
+    // Delete AssessmentSession rows for phases 3–7
+    await prisma.assessmentSession.deleteMany({
+      where: { userId, phase: { in: [3, 4, 5, 6, 7] } },
+    });
+
+    // Delete any phase=null legacy sessions (old Phase 3 adaptive sessions stored without a phase)
+    await prisma.assessmentSession.deleteMany({
+      where: { userId, phase: null },
+    });
+
+    // Invalidate context cache so Phase 3 re-initialisation gets fresh Phase 2 data
+    try {
+      const { contextAggregator } = await import('@/services/contextAggregator');
+      await contextAggregator.invalidate(userId).catch(() => undefined);
+    } catch {
+      // ignore
+    }
+
+    return sendSuccess(res, { reset: true }, 200, 'Assessment progress reset. You may now start over from Phase 1.');
+  })
+);
+
+
 
 // Save Phase 1 data
 router.post(
@@ -770,6 +800,99 @@ router.post(
       200,
       'Phase 6 validation completed'
     );
+  })
+);
+
+/**
+ * GET Phase 3 result (adaptive assessment session stored with phase=3)
+ */
+router.get(
+  '/phase-3-result',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+    const session = await prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 3 },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    if (!session) return sendSuccess(res, null, 200, 'No phase 3 data found');
+
+    let analysis: Record<string, unknown> = {};
+    try { analysis = JSON.parse(session.analysis); } catch { /* ignore */ }
+
+    return sendSuccess(
+      res,
+      { sessionId: session.id, phase: 3, completionPercent: 100, ...analysis },
+      200,
+      'Phase 3 data retrieved'
+    );
+  })
+);
+
+/**
+ * GET Phase 4 data
+ */
+router.get(
+  '/phase-4',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+    const session = await prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 4 },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    if (!session) return sendSuccess(res, null, 200, 'No phase 4 data found');
+
+    let analysis: Record<string, unknown> = {};
+    try { analysis = JSON.parse(session.analysis); } catch { /* ignore */ }
+
+    return sendSuccess(res, { sessionId: session.id, phase: 4, completionPercent: 100, ...analysis }, 200, 'Phase 4 data retrieved');
+  })
+);
+
+/**
+ * GET Phase 5 data
+ */
+router.get(
+  '/phase-5',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+    const session = await prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 5 },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    if (!session) return sendSuccess(res, null, 200, 'No phase 5 data found');
+
+    let analysis: Record<string, unknown> = {};
+    try { analysis = JSON.parse(session.analysis); } catch { /* ignore */ }
+
+    return sendSuccess(res, { sessionId: session.id, phase: 5, completionPercent: 100, ...analysis }, 200, 'Phase 5 data retrieved');
+  })
+);
+
+/**
+ * GET Phase 6 data
+ */
+router.get(
+  '/phase-6',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return sendError(res, 401, 'Unauthorized');
+
+    const session = await prisma.assessmentSession.findFirst({
+      where: { userId: req.user.id, phase: 6 },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    if (!session) return sendSuccess(res, null, 200, 'No phase 6 data found');
+
+    let analysis: Record<string, unknown> = {};
+    try { analysis = JSON.parse(session.analysis); } catch { /* ignore */ }
+
+    return sendSuccess(res, { sessionId: session.id, phase: 6, completionPercent: 100, ...analysis }, 200, 'Phase 6 data retrieved');
   })
 );
 

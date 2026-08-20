@@ -21,14 +21,13 @@
 
 import { PasswordUtil } from "@/utils/password";
 import { HIBPService } from "@/services/hibp.service";
-import { TokenPurpose, PrismaClient } from "@prisma/client";
+import { TokenPurpose } from "@prisma/client";
 import type { RegisterInput } from "@/shared/auth";
 import { userRepository } from "../repository";
 import { publishUserRegistered, publishEmailVerificationRequested } from "../events";
 import { AUTH_CONSTANTS } from "../constants";
 import { config } from "@/config/env";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export class RegisterService {
   /**
